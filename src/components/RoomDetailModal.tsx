@@ -41,6 +41,7 @@ export const RoomDetailModal: React.FC<RoomDetailModalProps> = ({
     turnAllOn,
     cancelAutoShutdown,
     simulateScenario,
+    toggleHardCutoff,
   } = useClassroom();
 
   const { currentUser, canPerform, openLoginModal } = useAuth();
@@ -225,13 +226,29 @@ export const RoomDetailModal: React.FC<RoomDetailModalProps> = ({
             <div className="bg-slate-800/60 border border-slate-700/60 rounded-lg p-2.5">
               <span className="text-[10px] text-slate-400 block font-medium uppercase">Công suất P (W)</span>
               <div className="mt-1 flex items-baseline gap-1">
-                <span className="text-lg font-bold font-mono text-emerald-400">
+                <span
+                  className={`text-lg font-bold font-mono ${
+                    classroom.isHardCutoff || classroom.totalPowerW === 0
+                      ? 'text-slate-400'
+                      : !classroom.devices.some((d) => d.isOn)
+                      ? 'text-cyan-400'
+                      : 'text-emerald-400'
+                  }`}
+                >
                   {classroom.totalPowerW}
                 </span>
                 <span className="text-[11px] text-slate-400">W</span>
               </div>
-              <span className="text-[10px] text-slate-400 block mt-0.5">
-                cos φ: {classroom.powerFactor}
+              <span className="text-[10px] block mt-0.5">
+                {classroom.isHardCutoff || classroom.totalPowerW === 0 ? (
+                  <span className="text-slate-500 font-mono">Đã ngắt CB 0W</span>
+                ) : !classroom.devices.some((d) => d.isOn) ? (
+                  <span className="text-cyan-400 font-mono" title="Nguồn chờ nuôi bo mạch vi điều khiển ESP32, module PZEM-004T & PIR">
+                    Chờ tĩnh IoT
+                  </span>
+                ) : (
+                  <span className="text-slate-400">cos φ: {classroom.powerFactor}</span>
+                )}
               </span>
             </div>
 
@@ -304,6 +321,45 @@ export const RoomDetailModal: React.FC<RoomDetailModalProps> = ({
               </span>
             </div>
           </div>
+
+          {/* Standby Power Explanation & Hard Cutoff Control */}
+          {!classroom.devices.some((d) => d.isOn) && (
+            <div className="p-4 rounded-xl bg-slate-900 border border-blue-900/40 text-xs text-slate-300 space-y-2.5">
+              <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
+                <div className="flex items-start gap-2.5">
+                  <div className="p-2 rounded-lg bg-blue-500/10 text-blue-400 shrink-0 mt-0.5">
+                    <Zap className="h-4 w-4" />
+                  </div>
+                  <div>
+                    <h5 className="font-bold text-white text-xs">
+                      {classroom.isHardCutoff
+                        ? '⚡ Trạng Thái Cắt Aptomat Tổng Cơ Khí (0.0 W)'
+                        : '💡 Giải Thích Kỹ Thuật: Vì Sao Tắt Điện Vẫn Còn Công Suất 6.5W?'}
+                    </h5>
+                    <p className="text-[11px] text-slate-400 mt-1 leading-relaxed">
+                      {classroom.isHardCutoff
+                        ? 'Toàn bộ nguồn điện 220V cấp vào phòng đã được ngắt hoàn toàn. Cảm biến PZEM-004T ghi nhận công suất và dòng điện bằng 0.0.'
+                        : 'Các tiếp điểm Relay 220V cho Đèn, Quạt, Máy lạnh đã NGẮT 100%. Mức ~6.5W (dòng 0.03A) còn lại chính là Nguồn Chờ Tĩnh (Standby Power) tiêu thụ bởi bộ nguồn xung 220V/5V nuôi vi điều khiển ESP32, module PZEM-004T và cảm biến PIR để duy trì kết nối mạng WiFi/MQTT và nhận lệnh điều khiển từ xa.'}
+                    </p>
+                  </div>
+                </div>
+
+                <button
+                  onClick={() => toggleHardCutoff(classroom.id)}
+                  className={`px-3 py-2 text-xs font-semibold rounded-lg border transition-colors shrink-0 flex items-center justify-center gap-1.5 ${
+                    classroom.isHardCutoff
+                      ? 'bg-blue-600 hover:bg-blue-500 text-white border-blue-500 shadow-sm'
+                      : 'bg-rose-950/70 hover:bg-rose-900 text-rose-300 border-rose-800'
+                  }`}
+                >
+                  <Power className="h-3.5 w-3.5" />
+                  <span>
+                    {classroom.isHardCutoff ? 'Khôi Phục Nguồn Chờ (6.5W)' : 'Cắt Aptomat Tổng (Về 0W)'}
+                  </span>
+                </button>
+              </div>
+            </div>
+          )}
 
           {/* Connected 220V Devices Control List */}
           <div>

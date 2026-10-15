@@ -76,6 +76,7 @@ export interface Classroom {
   // Cảnh báo & Tự động hóa
   warningForgotten: boolean; // Cảnh báo: Quên tắt thiết bị khi phòng trống/hết giờ
   autoShutdownRemainingSec: number | null; // Đếm ngược tự ngắt relay (giây)
+  isHardCutoff?: boolean; // Ngắt hoàn toàn Aptomat/CB tổng (Công suất về 0W thay vì 6.5W nguồn chờ)
   lastUpdated: string;
 }
 

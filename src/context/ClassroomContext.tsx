@@ -56,6 +56,7 @@ interface ClassroomContextType {
     }>
   ) => Promise<{ success: boolean; rlsBlocked?: boolean; error?: string; roomId?: number }>;
   loadDemoClassrooms: () => void;
+  toggleHardCutoff: (classroomId: string) => void;
 }
 
 const ClassroomContext = createContext<ClassroomContextType | null>(null);
@@ -346,12 +347,17 @@ export const ClassroomProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     });
 
     totalP = updatedDevices.reduce((sum, d) => sum + d.currentPowerW, 0);
-    if (totalP === 0) totalP = 6.5;
+    // Nếu tất cả phụ tải tắt:
+    // - Khi cắt Aptomat tổng (isHardCutoff): công suất = 0W
+    // - Khi ở chế độ chờ thông thường: công suất = 6.5W (Nguồn nuôi bo mạch ESP32, PZEM-004T & PIR)
+    if (totalP === 0) {
+      totalP = cr.isHardCutoff ? 0 : 6.5;
+    }
 
     const pf = cr.powerFactor || 0.96;
-    const currentA = Number((totalP / (cr.voltageV * pf)).toFixed(2));
-    const apparentPowerVA = Math.round(cr.voltageV * currentA);
-    const reactivePowerVAR = Math.round(Math.sqrt(Math.max(0, apparentPowerVA * apparentPowerVA - totalP * totalP)));
+    const currentA = totalP === 0 ? 0 : Number((totalP / (cr.voltageV * pf)).toFixed(2));
+    const apparentPowerVA = totalP === 0 ? 0 : Math.round(cr.voltageV * currentA);
+    const reactivePowerVAR = totalP === 0 ? 0 : Math.round(Math.sqrt(Math.max(0, apparentPowerVA * apparentPowerVA - totalP * totalP)));
 
     const anyMajorLoadOn = updatedDevices.some((d) => d.isOn && (d.type === 'ac' || d.type === 'light'));
     const warning = cr.isVacant && anyMajorLoadOn && cr.vacantDurationMinutes >= 5;
@@ -612,6 +618,44 @@ export const ClassroomProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     );
   }, [addHardwareLog]);
 
+  const toggleHardCutoff = useCallback((classroomId: string) => {
+    setClassrooms((prev) =>
+      prev.map((cr) => {
+        if (cr.id !== classroomId) return cr;
+        const nextHardCutoff = !cr.isHardCutoff;
+
+        let updatedDevices = cr.devices;
+        if (nextHardCutoff) {
+          // If cutting off completely, ensure all devices are off
+          updatedDevices = cr.devices.map((d) => ({
+            ...d,
+            isOn: false,
+            currentPowerW: 0,
+            relayState: 'OPEN' as const,
+          }));
+        }
+
+        const updatedRoom = recalcClassroomElectrics({
+          ...cr,
+          isHardCutoff: nextHardCutoff,
+          devices: updatedDevices,
+          lastUpdated: nextHardCutoff ? 'Đã ngắt Aptomat (0W)' : 'Khôi phục nguồn chờ ESP32 (6.5W)',
+        });
+
+        addHardwareLog(
+          `smartclass/${cr.code}/cmd`,
+          JSON.stringify({ cmd: nextHardCutoff ? 'HARD_CUTOFF_0W' : 'STANDBY_MODE_6.5W' }),
+          'OUT',
+          'COMMAND'
+        );
+
+        supabaseService.saveClassroom(updatedRoom).catch(console.error);
+        dbService.saveClassroom(updatedRoom).catch(console.error);
+        return updatedRoom;
+      })
+    );
+  }, [addHardwareLog]);
+
   const simulateScenario = useCallback(
     (scenario: 'leave_empty_forget' | 'students_enter' | 'auto_shutdown_now') => {
       if (scenario === 'leave_empty_forget') {
@@ -780,6 +824,7 @@ export const ClassroomProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         seedSupabaseClassrooms,
         addSupabaseRoom,
         loadDemoClassrooms,
+        toggleHardCutoff,
       }}
     >
       {children}

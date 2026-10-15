@@ -218,7 +218,12 @@ export const RoomPanelTouch: React.FC = () => {
                   Cụm Công Tắc Cảm Ứng Chiếu Sáng & Quạt (220V)
                 </h3>
                 <span className="text-[11px] text-slate-400 font-mono">
-                  Công suất tức thời: <strong className="text-emerald-400">{formatWatts(room.totalPowerW)}</strong>
+                  Công suất: <strong className={room.isHardCutoff || room.totalPowerW === 0 ? 'text-slate-400' : room.devices.some((d) => d.isOn) ? 'text-emerald-400' : 'text-cyan-400'}>{formatWatts(room.totalPowerW)}</strong>
+                  {!room.devices.some((d) => d.isOn) && (
+                    <span className="text-[10px] text-slate-500 ml-1">
+                      {room.isHardCutoff || room.totalPowerW === 0 ? '(Đã ngắt CB)' : '(Nguồn chờ ESP32)'}
+                    </span>
+                  )}
                 </span>
               </div>
 

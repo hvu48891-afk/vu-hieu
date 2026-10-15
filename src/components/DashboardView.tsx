@@ -49,6 +49,7 @@ export const DashboardView: React.FC = () => {
     seedSupabaseClassrooms,
     addSupabaseRoom,
     loadDemoClassrooms,
+    toggleHardCutoff,
   } = useClassroom();
 
   const { currentUser, canPerform, openLoginModal } = useAuth();
@@ -648,9 +649,32 @@ INSERT INTO public.devices (room_id, device_name, device_type, is_on) VALUES
                   <div className="grid grid-cols-3 gap-2 py-1 text-center bg-slate-950/60 rounded-lg p-2 border border-slate-800/80">
                     <div>
                       <span className="text-[10px] text-slate-400 block uppercase">Công suất</span>
-                      <span className="text-sm font-bold font-mono text-emerald-400">
-                        {formatWatts(cr.totalPowerW)}
-                      </span>
+                      {cr.isHardCutoff || cr.totalPowerW === 0 ? (
+                        <>
+                          <span className="text-sm font-bold font-mono text-slate-400">
+                            0 W
+                          </span>
+                          <span className="text-[9px] text-slate-500 font-mono block leading-none mt-0.5">
+                            Ngắt CB 0W
+                          </span>
+                        </>
+                      ) : !anyOn ? (
+                        <>
+                          <span className="text-sm font-bold font-mono text-cyan-400">
+                            {formatWatts(cr.totalPowerW)}
+                          </span>
+                          <span
+                            className="text-[9px] text-cyan-400/90 font-mono block leading-none mt-0.5 cursor-help"
+                            title="Nguồn chờ tĩnh (Standby) nuôi bo mạch vi điều khiển ESP32, module PZEM-004T & cảm biến PIR"
+                          >
+                            Chờ tĩnh IoT
+                          </span>
+                        </>
+                      ) : (
+                        <span className="text-sm font-bold font-mono text-emerald-400">
+                          {formatWatts(cr.totalPowerW)}
+                        </span>
+                      )}
                     </div>
                     <div>
                       <span className="text-[10px] text-slate-400 block uppercase">Nhiệt độ</span>
@@ -716,13 +740,29 @@ INSERT INTO public.devices (room_id, device_name, device_type, is_on) VALUES
                         AC: {acDevice.isOn ? 'BẬT' : 'TẮT'}
                       </button>
                     )}
-                    {anyOn && (
+                    {anyOn ? (
                       <button
                         onClick={() => handleRoomTurnAllOff(cr.id)}
                         title="Ngắt nhanh toàn bộ thiết bị phòng"
                         className="px-2 py-1 text-xs rounded font-medium bg-rose-950/40 text-rose-300 hover:bg-rose-900/60 border border-rose-800/60 transition-colors"
                       >
                         Ngắt điện
+                      </button>
+                    ) : (
+                      <button
+                        onClick={() => toggleHardCutoff(cr.id)}
+                        title={
+                          cr.isHardCutoff
+                            ? 'Bật lại nguồn chờ nuôi bo mạch IoT ESP32 (6.5W)'
+                            : 'Ngắt hoàn toàn Aptomat tổng về 0W (Total Cutoff)'
+                        }
+                        className={`px-2 py-1 text-xs rounded font-medium border transition-colors ${
+                          cr.isHardCutoff
+                            ? 'bg-slate-800 text-slate-300 border-slate-700 hover:text-white'
+                            : 'bg-cyan-950/50 text-cyan-300 border-cyan-800/60 hover:bg-cyan-900/60'
+                        }`}
+                      >
+                        {cr.isHardCutoff ? 'Bật chờ 6.5W' : 'Ngắt CB 0W'}
                       </button>
                     )}
                   </div>

@@ -34,6 +34,7 @@ import {
 } from 'lucide-react';
 import { AddRoomModal } from './AddRoomModal';
 import { GoogleIcon } from './GoogleIcon';
+import { SqlServerModal } from './SqlServerModal';
 
 export type ActiveTab = 'dashboard' | 'touch_panel' | 'schedule' | 'analytics' | 'hardware';
 
@@ -71,6 +72,7 @@ export const Header: React.FC<HeaderProps> = ({ activeTab, setActiveTab }) => {
 
   const [showGlobalOffModal, setShowGlobalOffModal] = useState<boolean>(false);
   const [showDbModal, setShowDbModal] = useState<boolean>(false);
+  const [showSqlServerModal, setShowSqlServerModal] = useState<boolean>(false);
   const [showAddModal, setShowAddModal] = useState<boolean>(false);
   const [copiedSql, setCopiedSql] = useState<boolean>(false);
   const [showSuccessToast, setShowSuccessToast] = useState<boolean>(false);
@@ -281,6 +283,15 @@ export const Header: React.FC<HeaderProps> = ({ activeTab, setActiveTab }) => {
               >
                 <ShieldCheck className="h-3.5 w-3.5 text-purple-400" />
                 <span className="hidden sm:inline">Phân quyền</span>
+              </button>
+
+              <button
+                onClick={() => setShowSqlServerModal(true)}
+                title="Quản lý kết nối & Đồng bộ với Microsoft SQL Server"
+                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-blue-950/70 hover:bg-blue-900/80 border border-blue-700/70 transition-colors text-xs font-semibold text-blue-200 shadow-sm cursor-pointer"
+              >
+                <Database className="h-3.5 w-3.5 text-blue-400" />
+                <span className="hidden sm:inline">SQL Server</span>
               </button>
 
               <button
@@ -662,6 +673,28 @@ export const Header: React.FC<HeaderProps> = ({ activeTab, setActiveTab }) => {
                 </div>
               </div>
 
+              {/* Microsoft SQL Server Card */}
+              <div className="p-3.5 rounded-xl bg-slate-950/70 border border-blue-900/40 space-y-2">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <span className="h-2.5 w-2.5 rounded-full bg-blue-400" />
+                    <span className="font-semibold text-xs text-white">Microsoft SQL Server (T-SQL Database)</span>
+                  </div>
+                  <button
+                    onClick={() => {
+                      setShowDbModal(false);
+                      setShowSqlServerModal(true);
+                    }}
+                    className="text-[10px] font-mono px-2 py-0.5 rounded bg-blue-950 text-blue-300 border border-blue-800 hover:bg-blue-900 transition-colors"
+                  >
+                    Mở Quản Trị SQL Server →
+                  </button>
+                </div>
+                <p className="text-xs text-slate-400">
+                  Kết nối trực tiếp tới CSDL SQL Server (cổng 1433), hỗ trợ đồng bộ danh sách phòng học và lưu trữ nhật ký cảm biến PZEM-004T.
+                </p>
+              </div>
+
               {/* Cloud Database (Firebase) Card */}
               <div className="p-3.5 rounded-xl bg-slate-950/70 border border-slate-800 space-y-2">
                 <div className="flex items-center justify-between">
@@ -701,6 +734,12 @@ export const Header: React.FC<HeaderProps> = ({ activeTab, setActiveTab }) => {
             setShowSuccessToast(true);
             setTimeout(() => setShowSuccessToast(false), 5000);
           }}
+        />
+
+        {/* Modal: SQL Server Database Integration */}
+        <SqlServerModal
+          isOpen={showSqlServerModal}
+          onClose={() => setShowSqlServerModal(false)}
         />
 
         {/* Navigation Tabs */}
