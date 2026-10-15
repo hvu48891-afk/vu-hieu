@@ -7,6 +7,7 @@ import {
 } from '../context/AuthContext';
 import { useClassroom } from '../context/ClassroomContext';
 import { UserRole, PermissionAction, User } from '../types';
+import { GoogleIcon } from './GoogleIcon';
 import {
   X,
   ShieldCheck,
@@ -633,15 +634,28 @@ export const PermissionsModal: React.FC = () => {
                           <tr key={user.id} className="hover:bg-slate-850/50 transition-colors">
                             <td className="py-3 px-4">
                               <div className="flex items-center gap-3">
-                                <div className="h-8 w-8 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center font-bold text-xs text-emerald-400 shrink-0">
-                                  {user.avatarInitials}
-                                </div>
+                                {user.avatarUrl ? (
+                                  <img
+                                    src={user.avatarUrl}
+                                    alt={user.name}
+                                    className="h-8 w-8 rounded-full object-cover border border-blue-500/50 shrink-0"
+                                  />
+                                ) : (
+                                  <div className="h-8 w-8 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center font-bold text-xs text-emerald-400 shrink-0">
+                                    {user.avatarInitials}
+                                  </div>
+                                )}
                                 <div>
                                   <div className="flex items-center gap-2">
                                     <span className="font-bold text-white text-xs">{user.name}</span>
+                                    {user.authProvider === 'google' && (
+                                      <span className="inline-flex items-center gap-0.5 text-[9px] font-mono px-1.5 py-0.2 rounded bg-sky-500/20 text-sky-300 border border-sky-500/40">
+                                        <GoogleIcon className="w-2.5 h-2.5" /> Google
+                                      </span>
+                                    )}
                                     {isCurrent && (
                                       <span className="text-[10px] font-mono px-1.5 py-0.2 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">
-                                        Đang kích hoạt
+                                        Đang dùng
                                       </span>
                                     )}
                                   </div>

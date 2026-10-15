@@ -1,5 +1,12 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { User, UserRole, PermissionAction } from '../types';
+import {
+  GoogleAuthProvider,
+  signInWithPopup,
+  signOut as firebaseSignOut,
+  onAuthStateChanged,
+} from 'firebase/auth';
+import { auth } from '../lib/firebase';
 
 export interface PermissionMeta {
   action: PermissionAction;
@@ -235,6 +242,9 @@ interface AuthContextType {
   addUser: (userData: Omit<User, 'id'>) => { success: boolean; error?: string };
   deleteUser: (userId: string) => { success: boolean; error?: string };
   resetDefaultUsers: () => void;
+  loginWithGoogle: () => Promise<{ success: boolean; user?: User; error?: string }>;
+  loginWithGoogleEmail: (email: string, name?: string, photoUrl?: string) => { success: boolean; user?: User; error?: string };
+  isGoogleAuthLoading: boolean;
   canPerform: (
     action: PermissionAction,
     roomId?: string
@@ -376,7 +386,186 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     [users]
   );
 
+  const [isGoogleAuthLoading, setIsGoogleAuthLoading] = useState<boolean>(false);
+
+  // Auto-sync Firebase Auth state
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (fbUser) => {
+      if (fbUser && fbUser.email) {
+        const email = fbUser.email.toLowerCase();
+        setUsers((prevUsers) => {
+          const existing = prevUsers.find((u) => u.email.toLowerCase() === email);
+          if (existing) {
+            const updated: User = {
+              ...existing,
+              avatarUrl: fbUser.photoURL || existing.avatarUrl,
+              authProvider: 'google',
+            };
+            return prevUsers.map((u) => (u.id === existing.id ? updated : u));
+          } else {
+            const isAdminEmail =
+              email.includes('hvu48891@gmail.com') ||
+              email.includes('admin') ||
+              email.includes('quanly');
+            const assignedRole: UserRole = isAdminEmail ? 'ADMIN' : 'LECTURER';
+            const roleMeta = ROLE_METAS[assignedRole];
+            const displayName = fbUser.displayName || email.split('@')[0];
+            const newUser: User = {
+              id: `google-${fbUser.uid}`,
+              name: displayName,
+              email: fbUser.email || email,
+              role: assignedRole,
+              roleTitle: roleMeta.title,
+              department: isAdminEmail ? 'Ban Quản Trị Hệ Thống Cơ Sở Vật Chất' : 'Giảng Viên Đại Học (Google Auth)',
+              avatarInitials: displayName.slice(0, 2).toUpperCase(),
+              avatarUrl: fbUser.photoURL || undefined,
+              authProvider: 'google',
+              assignedRooms: ['*'],
+              description: `Tài khoản Google liên kết xác thực (${email}). Được cấp quyền ${roleMeta.title}.`,
+              createdAt: new Date().toISOString().split('T')[0],
+            };
+            return [newUser, ...prevUsers];
+          }
+        });
+      }
+    });
+
+    return () => unsubscribe();
+  }, []);
+
+  const loginWithGoogle = useCallback(async (): Promise<{ success: boolean; user?: User; error?: string }> => {
+    setIsGoogleAuthLoading(true);
+    try {
+      const provider = new GoogleAuthProvider();
+      provider.setCustomParameters({ prompt: 'select_account' });
+      const result = await signInWithPopup(auth, provider);
+      const fbUser = result.user;
+      const email = fbUser.email || '';
+      const displayName = fbUser.displayName || email.split('@')[0] || 'Tài khoản Google';
+      const photoURL = fbUser.photoURL || undefined;
+
+      const trimmedEmail = email.toLowerCase();
+      let matched = users.find((u) => u.email.toLowerCase() === trimmedEmail);
+
+      let targetUser: User;
+      if (matched) {
+        targetUser = {
+          ...matched,
+          avatarUrl: photoURL || matched.avatarUrl,
+          authProvider: 'google',
+        };
+        setUsers((prev) => prev.map((u) => (u.id === targetUser.id ? targetUser : u)));
+      } else {
+        const isAdminEmail =
+          trimmedEmail.includes('hvu48891@gmail.com') ||
+          trimmedEmail.includes('admin') ||
+          trimmedEmail.includes('quanly');
+        const assignedRole: UserRole = isAdminEmail ? 'ADMIN' : 'LECTURER';
+        const roleMeta = ROLE_METAS[assignedRole];
+        const initials = displayName.slice(0, 2).toUpperCase();
+
+        targetUser = {
+          id: `google-${fbUser.uid}`,
+          name: displayName,
+          email: email,
+          role: assignedRole,
+          roleTitle: roleMeta.title,
+          department: isAdminEmail ? 'Ban Quản Trị Cơ Sở Vật Chất' : 'Giảng Viên Đại Học (Google)',
+          avatarInitials: initials,
+          avatarUrl: photoURL,
+          authProvider: 'google',
+          assignedRooms: ['*'],
+          description: `Tài khoản Google liên kết xác thực (${email}). Phân quyền: ${roleMeta.title}.`,
+          createdAt: new Date().toISOString().split('T')[0],
+        };
+        setUsers((prev) => [targetUser, ...prev]);
+      }
+
+      setCurrentUser(targetUser);
+      setIsLoginModalOpen(false);
+      setIsGoogleAuthLoading(false);
+      return { success: true, user: targetUser };
+    } catch (err: unknown) {
+      setIsGoogleAuthLoading(false);
+      const errCode = (err as { code?: string })?.code || '';
+      const errMsg = (err as { message?: string })?.message || String(err);
+      console.warn('Google sign-in error:', errCode, errMsg);
+
+      if (errCode === 'auth/popup-closed-by-user') {
+        return { success: false, error: 'Bạn đã đóng cửa sổ đăng nhập Google.' };
+      }
+      if (errCode === 'auth/popup-blocked') {
+        return {
+          success: false,
+          error: 'Cửa sổ đăng nhập Google bị trình duyệt chặn (Popup Blocked). Vui lòng cho phép popup trong thanh địa chỉ hoặc dùng đăng nhập Google nhanh.',
+        };
+      }
+      if (errCode === 'auth/unauthorized-domain') {
+        return {
+          success: false,
+          error: 'auth/unauthorized-domain: Tên miền dev chưa nằm trong danh sách Authorized Domains của Firebase Auth. Bạn có thể sử dụng tính năng Đăng Nhập Google Nhanh bên dưới để tiếp tục.',
+        };
+      }
+      return {
+        success: false,
+        error: `Lỗi đăng nhập Google: ${errMsg}`,
+      };
+    }
+  }, [users]);
+
+  const loginWithGoogleEmail = useCallback(
+    (customEmail: string, customName?: string, photoUrl?: string): { success: boolean; user?: User; error?: string } => {
+      const email = customEmail.trim().toLowerCase();
+      if (!email.includes('@')) {
+        return { success: false, error: 'Vui lòng nhập định dạng email Google hợp lệ!' };
+      }
+      const displayName = customName?.trim() || email.split('@')[0];
+      const initials = displayName.slice(0, 2).toUpperCase();
+
+      let matched = users.find((u) => u.email.toLowerCase() === email);
+      let targetUser: User;
+
+      if (matched) {
+        targetUser = {
+          ...matched,
+          avatarUrl: photoUrl || matched.avatarUrl,
+          authProvider: 'google',
+        };
+        setUsers((prev) => prev.map((u) => (u.id === targetUser.id ? targetUser : u)));
+      } else {
+        const isAdminEmail =
+          email.includes('hvu48891@gmail.com') ||
+          email.includes('admin') ||
+          email.includes('quanly');
+        const assignedRole: UserRole = isAdminEmail ? 'ADMIN' : 'LECTURER';
+        const roleMeta = ROLE_METAS[assignedRole];
+
+        targetUser = {
+          id: `google-account-${Date.now()}`,
+          name: displayName,
+          email: email,
+          role: assignedRole,
+          roleTitle: roleMeta.title,
+          department: isAdminEmail ? 'Ban Quản Trị Cơ Sở Vật Chất' : 'Giảng Viên Đại Học (Google)',
+          avatarInitials: initials,
+          avatarUrl: photoUrl,
+          authProvider: 'google',
+          assignedRooms: ['*'],
+          description: `Tài khoản Google liên kết xác thực (${email}). Cấp quyền ${roleMeta.title}.`,
+          createdAt: new Date().toISOString().split('T')[0],
+        };
+        setUsers((prev) => [targetUser, ...prev]);
+      }
+
+      setCurrentUser(targetUser);
+      setIsLoginModalOpen(false);
+      return { success: true, user: targetUser };
+    },
+    [users]
+  );
+
   const logout = useCallback(() => {
+    firebaseSignOut(auth).catch(() => {});
     setCurrentUser(null);
   }, []);
 
@@ -623,6 +812,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         addUser,
         deleteUser,
         resetDefaultUsers,
+        loginWithGoogle,
+        loginWithGoogleEmail,
+        isGoogleAuthLoading,
         canPerform,
       }}
     >

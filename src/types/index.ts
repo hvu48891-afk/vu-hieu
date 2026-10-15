@@ -137,6 +137,8 @@ export interface User {
   roleTitle: string; // Tên chức danh tiếng Việt (vd: Quản Trị Viên Cơ Sở Vật Chất)
   department: string; // Đơn vị công tác (vd: Phòng Quản Trị Thiết Bị & CSVC)
   avatarInitials: string;
+  avatarUrl?: string; // URL ảnh đại diện Google (nếu đăng nhập bằng Google)
+  authProvider?: 'google' | 'password' | 'demo'; // Phương thức xác thực
   assignedRooms: string[]; // ['*'] for all, or ['cr-a101', 'cr-a102']
   customPermissions?: Partial<Record<PermissionAction, boolean>>;
   description?: string;

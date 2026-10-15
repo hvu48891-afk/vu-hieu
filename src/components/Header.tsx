@@ -33,6 +33,7 @@ import {
   Plus,
 } from 'lucide-react';
 import { AddRoomModal } from './AddRoomModal';
+import { GoogleIcon } from './GoogleIcon';
 
 export type ActiveTab = 'dashboard' | 'touch_panel' | 'schedule' | 'analytics' | 'hardware';
 
@@ -57,7 +58,16 @@ export const Header: React.FC<HeaderProps> = ({ activeTab, setActiveTab }) => {
     supabaseStatus,
   } = useClassroom();
 
-  const { currentUser, openLoginModal, logout, quickLogin, canPerform, openPermissionsModal } = useAuth();
+  const {
+    currentUser,
+    openLoginModal,
+    logout,
+    quickLogin,
+    canPerform,
+    openPermissionsModal,
+    loginWithGoogle,
+    isGoogleAuthLoading,
+  } = useAuth();
 
   const [showGlobalOffModal, setShowGlobalOffModal] = useState<boolean>(false);
   const [showDbModal, setShowDbModal] = useState<boolean>(false);
@@ -292,13 +302,26 @@ export const Header: React.FC<HeaderProps> = ({ activeTab, setActiveTab }) => {
                     className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg bg-slate-800/90 hover:bg-slate-800 border border-slate-700/80 hover:border-slate-600 transition-all text-xs"
                     title="Thông tin tài khoản & Phân quyền"
                   >
-                    <div className="h-6 w-6 rounded-full bg-slate-700 border border-slate-600 flex items-center justify-center font-bold text-[10px] text-emerald-400">
-                      {currentUser.avatarInitials}
-                    </div>
+                    {currentUser.avatarUrl ? (
+                      <img
+                        src={currentUser.avatarUrl}
+                        alt={currentUser.name}
+                        className="h-6 w-6 rounded-full object-cover border border-blue-400/60"
+                      />
+                    ) : (
+                      <div className="h-6 w-6 rounded-full bg-slate-700 border border-slate-600 flex items-center justify-center font-bold text-[10px] text-emerald-400">
+                        {currentUser.avatarInitials}
+                      </div>
+                    )}
                     <div className="text-left hidden sm:block">
-                      <span className="font-semibold text-white block text-[11px] leading-tight max-w-[120px] truncate">
-                        {currentUser.name}
-                      </span>
+                      <div className="flex items-center gap-1">
+                        <span className="font-semibold text-white block text-[11px] leading-tight max-w-[120px] truncate">
+                          {currentUser.name}
+                        </span>
+                        {currentUser.authProvider === 'google' && (
+                          <GoogleIcon className="w-2.5 h-2.5 shrink-0" />
+                        )}
+                      </div>
                       <span className="text-[9px] text-slate-400 block font-mono leading-none">
                         {currentUser.role}
                       </span>
@@ -319,9 +342,17 @@ export const Header: React.FC<HeaderProps> = ({ activeTab, setActiveTab }) => {
                       <div className="absolute right-0 top-full mt-2 w-80 bg-slate-900 border border-slate-700 rounded-xl shadow-2xl p-3 z-40 animate-scaleUp text-slate-200">
                         {/* User Summary */}
                         <div className="flex items-start gap-3 p-2.5 rounded-lg bg-slate-950 border border-slate-800">
-                          <div className="h-9 w-9 rounded-xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center font-bold text-xs text-emerald-400 shrink-0">
-                            {currentUser.avatarInitials}
-                          </div>
+                          {currentUser.avatarUrl ? (
+                            <img
+                              src={currentUser.avatarUrl}
+                              alt={currentUser.name}
+                              className="h-10 w-10 rounded-xl object-cover border border-blue-500/40 shrink-0"
+                            />
+                          ) : (
+                            <div className="h-10 w-10 rounded-xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center font-bold text-xs text-emerald-400 shrink-0">
+                              {currentUser.avatarInitials}
+                            </div>
+                          )}
                           <div className="min-w-0 flex-1">
                             <div className="flex items-center justify-between gap-1">
                               <span className="font-bold text-xs text-white truncate">
@@ -334,9 +365,17 @@ export const Header: React.FC<HeaderProps> = ({ activeTab, setActiveTab }) => {
                             <span className="text-[11px] text-slate-400 block truncate mt-0.5">
                               {currentUser.email}
                             </span>
-                            <span className="text-[10px] text-slate-400 block mt-0.5">
-                              {currentUser.department}
-                            </span>
+                            <div className="flex items-center gap-1.5 mt-1">
+                              {currentUser.authProvider === 'google' ? (
+                                <span className="inline-flex items-center gap-1 text-[9px] font-mono px-1.5 py-0.2 rounded bg-sky-500/20 text-sky-300 border border-sky-500/30">
+                                  <GoogleIcon className="w-2.5 h-2.5" /> Google Auth
+                                </span>
+                              ) : (
+                                <span className="text-[10px] text-slate-500">
+                                  {currentUser.department}
+                                </span>
+                              )}
+                            </div>
                           </div>
                         </div>
 
@@ -399,16 +438,33 @@ export const Header: React.FC<HeaderProps> = ({ activeTab, setActiveTab }) => {
                             <span>Quản lý phân quyền tài khoản (RBAC)</span>
                           </button>
 
-                          <div className="flex items-center justify-between gap-2">
+                          <div className="flex items-center justify-between gap-1.5 pt-1">
                             <button
                               onClick={() => {
                                 setShowUserDropdown(false);
                                 openLoginModal();
                               }}
-                              className="px-2.5 py-1.5 text-xs text-slate-300 hover:text-white hover:bg-slate-800 rounded-md transition-colors flex items-center gap-1.5"
+                              className="px-2 py-1 text-xs text-slate-300 hover:text-white hover:bg-slate-800 rounded-md transition-colors flex items-center gap-1.5"
                             >
                               <User className="h-3.5 w-3.5" />
-                              <span>Đăng nhập khác</span>
+                              <span>Đổi tài khoản</span>
+                            </button>
+
+                            <button
+                              onClick={async () => {
+                                setShowUserDropdown(false);
+                                const res = await loginWithGoogle();
+                                if (res.success && res.user) {
+                                  setToastType('success');
+                                  setToastMessage(`Đã đăng nhập Google: ${res.user.name}`);
+                                  setShowSuccessToast(true);
+                                  setTimeout(() => setShowSuccessToast(false), 3000);
+                                }
+                              }}
+                              className="px-2 py-1 text-xs text-sky-300 hover:text-sky-200 hover:bg-sky-950/60 rounded-md transition-colors flex items-center gap-1.5"
+                            >
+                              <GoogleIcon className="w-3 h-3" />
+                              <span>Đổi Google</span>
                             </button>
 
                             <button
@@ -420,7 +476,7 @@ export const Header: React.FC<HeaderProps> = ({ activeTab, setActiveTab }) => {
                                 setShowSuccessToast(true);
                                 setTimeout(() => setShowSuccessToast(false), 3000);
                               }}
-                              className="px-2.5 py-1.5 text-xs text-rose-300 hover:text-rose-200 hover:bg-rose-950/60 rounded-md transition-colors flex items-center gap-1.5"
+                              className="px-2 py-1 text-xs text-rose-300 hover:text-rose-200 hover:bg-rose-950/60 rounded-md transition-colors flex items-center gap-1.5"
                             >
                               <LogOut className="h-3.5 w-3.5" />
                               <span>Đăng xuất</span>
@@ -434,9 +490,28 @@ export const Header: React.FC<HeaderProps> = ({ activeTab, setActiveTab }) => {
               ) : (
                 <div className="flex items-center gap-2">
                   <button
+                    onClick={async () => {
+                      const res = await loginWithGoogle();
+                      if (res.success && res.user) {
+                        setToastType('success');
+                        setToastMessage(`Đăng nhập Google thành công: ${res.user.name} (${res.user.roleTitle})`);
+                        setShowSuccessToast(true);
+                        setTimeout(() => setShowSuccessToast(false), 3000);
+                      } else if (!res.success && res.error) {
+                        openLoginModal();
+                      }
+                    }}
+                    disabled={isGoogleAuthLoading}
+                    className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-semibold text-slate-900 bg-white hover:bg-slate-100 rounded-lg transition-colors shadow-sm active:scale-95 border border-slate-200"
+                    title="Đăng nhập tài khoản Google"
+                  >
+                    <GoogleIcon className="w-3.5 h-3.5" />
+                    <span className="hidden sm:inline">Google</span>
+                  </button>
+                  <button
                     onClick={openLoginModal}
                     className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-slate-950 bg-emerald-400 hover:bg-emerald-300 rounded-lg transition-colors shadow-sm active:scale-95"
-                    title="Đăng nhập để điều khiển hệ thống"
+                    title="Mở cổng đăng nhập hệ thống"
                   >
                     <LogIn className="h-3.5 w-3.5 text-slate-950" />
                     <span>Đăng nhập</span>
