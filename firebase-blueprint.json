@@ -1,0 +1,75 @@
+{
+  "entities": {
+    "Classroom": {
+      "title": "Classroom",
+      "description": "Smart classroom energy and device control data",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "code": { "type": "string" },
+        "name": { "type": "string" },
+        "building": { "type": "string" },
+        "floor": { "type": "number" },
+        "capacity": { "type": "number" },
+        "roomAreaM2": { "type": "number" },
+        "temperature": { "type": "number" },
+        "humidity": { "type": "number" },
+        "hasMotion": { "type": "number" },
+        "isVacant": { "type": "boolean" },
+        "vacantDurationMinutes": { "type": "number" },
+        "voltageV": { "type": "number" },
+        "currentA": { "type": "number" },
+        "totalPowerW": { "type": "number" },
+        "apparentPowerVA": { "type": "number" },
+        "reactivePowerVAR": { "type": "number" },
+        "frequencyHz": { "type": "number" },
+        "powerFactor": { "type": "number" },
+        "energyTodayKWh": { "type": "number" },
+        "warningForgotten": { "type": "boolean" },
+        "autoShutdownRemainingSec": { "type": "number" },
+        "lastUpdated": { "type": "string" }
+      },
+      "required": ["id", "code", "name", "building", "voltageV", "totalPowerW"]
+    },
+    "User": {
+      "title": "User",
+      "description": "User profile with role and assigned rooms",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "email": { "type": "string" },
+        "name": { "type": "string" },
+        "role": { "type": "string" },
+        "roleTitle": { "type": "string" },
+        "department": { "type": "string" },
+        "avatarInitials": { "type": "string" }
+      },
+      "required": ["id", "email", "name", "role"]
+    },
+    "SystemSetting": {
+      "title": "SystemSetting",
+      "description": "System state such as global sound settings",
+      "type": "object",
+      "properties": {
+        "soundEnabled": { "type": "boolean" },
+        "autoCutoffEnabled": { "type": "boolean" },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["updatedAt"]
+    }
+  },
+  "firestore": {
+    "/classrooms/{classroomId}": {
+      "schema": "Classroom",
+      "description": "Classroom monitoring documents"
+    },
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "User profiles"
+    },
+    "/settings/{settingId}": {
+      "schema": "SystemSetting",
+      "description": "System configurations"
+    }
+  }
+}

@@ -1,0 +1,6 @@
+{
+  "name": "SmartClass Energy - Hệ Thống Giám Sát & Quản Lý Điện Năng Phòng Học",
+  "description": "Hệ thống IoT giám sát, điều khiển từ xa và quản lý năng lượng phòng học thông minh, tích hợp bảng điều khiển tại chỗ và tự động ngắt điện sau giờ học.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
