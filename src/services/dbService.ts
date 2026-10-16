@@ -122,5 +122,24 @@ export const dbService = {
     } catch (error) {
       handleFirestoreError(error, OperationType.WRITE, docPath);
     }
+  },
+
+  // Lưu thông tin người dùng vào Firestore
+  async saveUser(user: any): Promise<void> {
+    const docPath = `users/${user.id}`;
+    try {
+      await setDoc(doc(db, 'users', user.id), user, { merge: true });
+    } catch (error) {
+      console.warn('[Firestore] saveUser warning:', error);
+    }
+  },
+
+  // Xóa người dùng khỏi Firestore
+  async deleteUser(userId: string): Promise<void> {
+    try {
+      await deleteDoc(doc(db, 'users', userId));
+    } catch (error) {
+      console.warn('[Firestore] deleteUser warning:', error);
+    }
   }
 };

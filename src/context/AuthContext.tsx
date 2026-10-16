@@ -7,6 +7,8 @@ import {
   onAuthStateChanged,
 } from 'firebase/auth';
 import { auth } from '../lib/firebase';
+import { supabaseService } from '../services/supabaseService';
+import { dbService } from '../services/dbService';
 
 export interface PermissionMeta {
   action: PermissionAction;
@@ -239,8 +241,16 @@ interface AuthContextType {
   updateUserRole: (userId: string, newRole: UserRole) => void;
   updateUserRooms: (userId: string, rooms: string[]) => void;
   updateUserPermissions: (userId: string, customPermissions: Partial<Record<PermissionAction, boolean>>) => void;
-  addUser: (userData: Omit<User, 'id'>) => { success: boolean; error?: string };
-  deleteUser: (userId: string) => { success: boolean; error?: string };
+  addUser: (userData: Omit<User, 'id'>) => Promise<{ success: boolean; error?: string }>;
+  register: (userData: {
+    name: string;
+    email: string;
+    username?: string;
+    password?: string;
+    role?: UserRole;
+    department?: string;
+  }) => Promise<{ success: boolean; user?: User; error?: string }>;
+  deleteUser: (userId: string) => Promise<{ success: boolean; error?: string }>;
   resetDefaultUsers: () => void;
   loginWithGoogle: () => Promise<{ success: boolean; user?: User; error?: string }>;
   loginWithGoogleEmail: (email: string, name?: string, photoUrl?: string) => { success: boolean; user?: User; error?: string };
@@ -310,6 +320,63 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       // ignore
     }
   }, [currentUser]);
+
+  // Load and sync users from Supabase 'users' table
+  useEffect(() => {
+    const loadSupabaseUsers = async () => {
+      try {
+        const sbUsers = await supabaseService.fetchUsers();
+        if (sbUsers && sbUsers.length > 0) {
+          setUsers((prev) => {
+            const map = new Map<string, User>();
+            prev.forEach((u) => map.set(u.email.toLowerCase(), u));
+
+            sbUsers.forEach((row) => {
+              const emailKey = row.email.toLowerCase();
+              if (!map.has(emailKey)) {
+                let mappedRole: UserRole = 'LECTURER';
+                const r = row.role.toLowerCase();
+                if (r === 'admin' || r === 'manager') mappedRole = 'ADMIN';
+                else if (r === 'technician' || r === 'tech') mappedRole = 'TECHNICIAN';
+                else if (r === 'student') mappedRole = 'STUDENT';
+
+                const roleMeta = ROLE_METAS[mappedRole];
+                const initials =
+                  row.full_name
+                    .split(' ')
+                    .filter(Boolean)
+                    .map((n) => n[0])
+                    .slice(-2)
+                    .join('')
+                    .toUpperCase() || 'SB';
+
+                const u: User = {
+                  id: `user-sb-${row.id}`,
+                  name: row.full_name || row.username,
+                  email: row.email,
+                  role: mappedRole,
+                  roleTitle: roleMeta.title,
+                  department: 'Cơ sở dữ liệu Supabase',
+                  avatarInitials: initials,
+                  authProvider: 'password',
+                  assignedRooms: ['*'],
+                  description: `Tài khoản đã đăng ký trên Supabase (ID: ${row.id}, @${row.username}).`,
+                  createdAt: row.created_at ? row.created_at.split('T')[0] : '2026-10-15',
+                };
+                map.set(emailKey, u);
+              }
+            });
+
+            return Array.from(map.values());
+          });
+        }
+      } catch (err) {
+        console.warn('[AuthContext] Load Supabase users failed:', err);
+      }
+    };
+
+    loadSupabaseUsers();
+  }, []);
 
   // If a user in `users` gets updated, keep `currentUser` updated if it's the same user
   useEffect(() => {
@@ -633,43 +700,148 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     []
   );
 
-  const addUser = useCallback((userData: Omit<User, 'id'>): { success: boolean; error?: string } => {
-    if (!userData.email.trim() || !userData.name.trim()) {
-      return { success: false, error: 'Họ tên và Email không được để trống!' };
-    }
-    const roleMeta = ROLE_METAS[userData.role];
-    const newUser: User = {
-      ...userData,
-      id: 'user-' + Date.now() + '-' + Math.random().toString(36).substring(2, 6),
-      roleTitle: userData.roleTitle || roleMeta.title,
-      avatarInitials:
-        userData.avatarInitials ||
-        userData.name
+  const addUser = useCallback(
+    async (userData: Omit<User, 'id'>): Promise<{ success: boolean; error?: string }> => {
+      if (!userData.email.trim() || !userData.name.trim()) {
+        return { success: false, error: 'Họ tên và Email không được để trống!' };
+      }
+      const roleMeta = ROLE_METAS[userData.role];
+      const newUser: User = {
+        ...userData,
+        id: 'user-' + Date.now() + '-' + Math.random().toString(36).substring(2, 6),
+        roleTitle: userData.roleTitle || roleMeta.title,
+        avatarInitials:
+          userData.avatarInitials ||
+          userData.name
+            .split(' ')
+            .filter(Boolean)
+            .map((n) => n[0])
+            .slice(-2)
+            .join('')
+            .toUpperCase() ||
+          'US',
+        createdAt: new Date().toISOString().split('T')[0],
+      };
+
+      // Persist to Supabase 'users' table
+      supabaseService.registerUser({
+        name: newUser.name,
+        email: newUser.email,
+        role: newUser.role,
+      }).catch(console.warn);
+
+      // Persist to Firestore
+      dbService.saveUser(newUser).catch(console.warn);
+
+      setUsers((prev) => [newUser, ...prev]);
+      return { success: true };
+    },
+    []
+  );
+
+  const register = useCallback(
+    async (userData: {
+      name: string;
+      email: string;
+      username?: string;
+      password?: string;
+      role?: UserRole;
+      department?: string;
+    }): Promise<{ success: boolean; user?: User; error?: string }> => {
+      const cleanEmail = userData.email.trim().toLowerCase();
+      const cleanName = userData.name.trim();
+
+      if (!cleanEmail || !cleanName) {
+        return { success: false, error: 'Vui lòng điền đầy đủ Họ tên và Email!' };
+      }
+      if (!cleanEmail.includes('@')) {
+        return { success: false, error: 'Định dạng email không hợp lệ!' };
+      }
+
+      // Check if already registered
+      const existing = users.find((u) => u.email.toLowerCase() === cleanEmail);
+      if (existing) {
+        return {
+          success: false,
+          error: `Email ${cleanEmail} đã tồn tại trong hệ thống! Vui lòng dùng email khác hoặc chuyển sang tab Đăng nhập.`,
+        };
+      }
+
+      const selectedRole: UserRole = userData.role || 'LECTURER';
+      const roleMeta = ROLE_METAS[selectedRole];
+      const cleanPassword = userData.password || '123456';
+      const cleanDept = userData.department?.trim() || 'Khoa Điện tử - Viễn thông / IoT';
+      const initials =
+        cleanName
           .split(' ')
           .filter(Boolean)
           .map((n) => n[0])
           .slice(-2)
           .join('')
-          .toUpperCase() ||
-        'US',
-      createdAt: new Date().toISOString().split('T')[0],
-    };
-    setUsers((prev) => [newUser, ...prev]);
-    return { success: true };
-  }, []);
+          .toUpperCase() || 'ND';
+
+      const newUserId = 'user-' + Date.now();
+      const newUser: User = {
+        id: newUserId,
+        name: cleanName,
+        email: cleanEmail,
+        password: cleanPassword,
+        role: selectedRole,
+        roleTitle: roleMeta.title,
+        department: cleanDept,
+        avatarInitials: initials,
+        authProvider: 'password',
+        assignedRooms: ['*'],
+        description: `Tài khoản ${roleMeta.title} đăng ký trực tuyến. Đã ghi vào cơ sở dữ liệu Supabase & Cloud.`,
+        createdAt: new Date().toISOString().split('T')[0],
+      };
+
+      // 1. Write directly to Supabase 'users' table
+      const sbRes = await supabaseService.registerUser({
+        name: cleanName,
+        email: cleanEmail,
+        username: userData.username,
+        role: selectedRole,
+      });
+
+      if (!sbRes.success) {
+        console.warn('[Supabase] Warning registering user to Supabase:', sbRes.error);
+      }
+
+      // 2. Write to Firestore 'users' collection
+      await dbService.saveUser(newUser);
+
+      // 3. Update React state and switch current session
+      setUsers((prev) => [newUser, ...prev]);
+      setCurrentUser(newUser);
+      setIsLoginModalOpen(false);
+
+      return { success: true, user: newUser };
+    },
+    [users]
+  );
 
   const deleteUser = useCallback(
-    (userId: string): { success: boolean; error?: string } => {
+    async (userId: string): Promise<{ success: boolean; error?: string }> => {
       if (currentUser && currentUser.id === userId) {
         return { success: false, error: 'Không thể xóa tài khoản đang đăng nhập hiện tại!' };
       }
       if (userId === 'user-admin') {
         return { success: false, error: 'Không thể xóa Quản trị viên hệ thống gốc (Root Admin)!' };
       }
+
+      const target = users.find((u) => u.id === userId);
+      if (target) {
+        // Delete from Supabase
+        supabaseService.deleteUser(target.email).catch(console.warn);
+      }
+      // Delete from Firestore
+      dbService.deleteUser(userId).catch(console.warn);
+
       setUsers((prev) => prev.filter((u) => u.id !== userId));
       return { success: true };
     },
-    [currentUser]
+    [currentUser, users]
   );
 
   const resetDefaultUsers = useCallback(() => {
@@ -810,6 +982,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         updateUserRooms,
         updateUserPermissions,
         addUser,
+        register,
         deleteUser,
         resetDefaultUsers,
         loginWithGoogle,

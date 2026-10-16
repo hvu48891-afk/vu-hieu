@@ -601,4 +601,104 @@ export const supabaseService = {
       return false;
     }
   },
+
+  /**
+   * Fetch all registered users from Supabase 'users' table
+   */
+  async fetchUsers(): Promise<Array<{
+    id: number;
+    username: string;
+    full_name: string;
+    email: string;
+    role: string;
+    is_active: boolean;
+    created_at?: string;
+  }>> {
+    const supabase = getSupabaseClient();
+    if (!supabase) return [];
+
+    try {
+      const { data, error } = await supabase.from('users').select('*');
+      if (!error && Array.isArray(data)) {
+        return data;
+      }
+      if (error) {
+        console.warn('[Supabase] fetchUsers notice:', error.message);
+      }
+    } catch (e) {
+      console.warn('[Supabase] fetchUsers exception:', e);
+    }
+    return [];
+  },
+
+  /**
+   * Register a new user and persist directly into Supabase 'users' table
+   */
+  async registerUser(userData: {
+    name: string;
+    email: string;
+    username?: string;
+    role: string;
+  }): Promise<{ success: boolean; data?: any; error?: string }> {
+    const supabase = getSupabaseClient();
+    if (!supabase) return { success: false, error: 'Chưa khởi tạo client Supabase' };
+
+    try {
+      const cleanEmail = userData.email.trim().toLowerCase();
+      const fallbackUsername = cleanEmail.split('@')[0].replace(/[^a-zA-Z0-9_]/g, '_').toLowerCase();
+      const username = userData.username?.trim() || fallbackUsername;
+      
+      // Map role to database enum / string
+      let dbRole = 'lecturer';
+      const r = userData.role.toLowerCase();
+      if (r === 'admin' || r === 'manager') dbRole = 'manager';
+      else if (r === 'technician' || r === 'tech') dbRole = 'technician';
+      else if (r === 'student') dbRole = 'student';
+      else dbRole = 'lecturer';
+
+      const { data, error } = await supabase
+        .from('users')
+        .insert([
+          {
+            username,
+            full_name: userData.name.trim(),
+            email: cleanEmail,
+            role: dbRole,
+            is_active: true,
+          },
+        ])
+        .select();
+
+      if (error) {
+        console.warn('[Supabase] registerUser error:', error);
+        return { success: false, error: error.message };
+      }
+
+      return { success: true, data: data?.[0] };
+    } catch (err) {
+      return {
+        success: false,
+        error: err instanceof Error ? err.message : 'Lỗi khi ghi tài khoản vào Supabase',
+      };
+    }
+  },
+
+  /**
+   * Delete a user from Supabase 'users' table
+   */
+  async deleteUser(emailOrId: string | number): Promise<{ success: boolean; error?: string }> {
+    const supabase = getSupabaseClient();
+    if (!supabase) return { success: false, error: 'Client not configured' };
+
+    try {
+      if (typeof emailOrId === 'number' || !isNaN(Number(emailOrId))) {
+        await supabase.from('users').delete().eq('id', Number(emailOrId));
+      } else {
+        await supabase.from('users').delete().eq('email', emailOrId.toLowerCase());
+      }
+      return { success: true };
+    } catch (err) {
+      return { success: false, error: err instanceof Error ? err.message : 'Error deleting user' };
+    }
+  },
 };

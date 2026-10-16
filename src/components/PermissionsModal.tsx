@@ -76,14 +76,14 @@ export const PermissionsModal: React.FC = () => {
     setTimeout(() => setNotice(null), 3500);
   };
 
-  const handleCreateUser = (e: React.FormEvent) => {
+  const handleCreateUser = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newName.trim() || !newEmail.trim()) {
       showNotification('Vui lòng điền họ tên và email hợp lệ!', 'error');
       return;
     }
 
-    const res = addUser({
+    const res = await addUser({
       name: newName.trim(),
       email: newEmail.trim().toLowerCase(),
       password: newPassword,
@@ -99,11 +99,11 @@ export const PermissionsModal: React.FC = () => {
         .slice(-2)
         .join('')
         .toUpperCase() || 'NV',
-      description: `Tài khoản ${ROLE_METAS[newRole].title} mới tạo.`,
+      description: `Tài khoản ${ROLE_METAS[newRole].title} mới tạo. Tự động lưu vào Supabase.`,
     });
 
     if (res.success) {
-      showNotification(`Đã tạo thành công tài khoản: ${newName}!`);
+      showNotification(`Đã tạo thành công tài khoản: ${newName} và lưu vào Database!`);
       setShowAddForm(false);
       setNewName('');
       setNewEmail('');
@@ -736,8 +736,8 @@ export const PermissionsModal: React.FC = () => {
 
                                 {user.id !== 'user-admin' && (
                                   <button
-                                    onClick={() => {
-                                      const res = deleteUser(user.id);
+                                    onClick={async () => {
+                                      const res = await deleteUser(user.id);
                                       if (res.success) {
                                         showNotification(`Đã xóa tài khoản: ${user.name}`);
                                       } else {
