@@ -21,16 +21,19 @@ import {
   ShieldAlert,
   Clock,
   LogIn,
+  Trash2,
 } from 'lucide-react';
 
 interface RoomDetailModalProps {
   classroom: Classroom;
   onClose: () => void;
+  onDeleteRoom?: (classroom: Classroom) => void;
 }
 
 export const RoomDetailModal: React.FC<RoomDetailModalProps> = ({
   classroom,
   onClose,
+  onDeleteRoom,
 }) => {
   const {
     toggleDevice,
@@ -584,12 +587,25 @@ export const RoomDetailModal: React.FC<RoomDetailModalProps> = ({
               Sinh viên vào lớp
             </button>
           </div>
-          <button
-            onClick={onClose}
-            className="px-4 py-1.5 bg-slate-800 hover:bg-slate-700 text-white rounded font-medium transition-colors"
-          >
-            Đóng bảng
-          </button>
+          <div className="flex items-center gap-2">
+            {onDeleteRoom && (
+              <button
+                type="button"
+                onClick={() => onDeleteRoom(classroom)}
+                title="Xóa phòng học này"
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-rose-950/60 hover:bg-rose-900/80 border border-rose-800/80 text-rose-300 rounded font-medium transition-colors"
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+                <span>Xóa phòng</span>
+              </button>
+            )}
+            <button
+              onClick={onClose}
+              className="px-4 py-1.5 bg-slate-800 hover:bg-slate-700 text-white rounded font-medium transition-colors"
+            >
+              Đóng bảng
+            </button>
+          </div>
         </div>
       </div>
     </div>

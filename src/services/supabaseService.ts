@@ -444,6 +444,67 @@ export const supabaseService = {
   },
 
   /**
+   * Delete a room from Supabase ('rooms' + linked 'devices' and 'schedules')
+   */
+  async deleteRoom(
+    roomIdOrCode: string
+  ): Promise<{ success: boolean; error?: string; rlsBlocked?: boolean }> {
+    const supabase = getSupabaseClient();
+    if (!supabase) return { success: false, error: 'Client not initialized' };
+
+    try {
+      // 1. Extract numeric id if format is "cr-1", "1", etc.
+      const cleanNumericId = roomIdOrCode.replace(/^cr-/, '');
+      const numId = parseInt(cleanNumericId, 10);
+
+      if (!isNaN(numId)) {
+        // Delete related child rows first to avoid foreign key constraints
+        try {
+          await supabase.from('devices').delete().eq('room_id', numId);
+        } catch (e) {
+          console.warn('[Supabase] Warning deleting child devices:', e);
+        }
+        try {
+          await supabase.from('schedules').delete().eq('room_id', numId);
+        } catch (e) {
+          console.warn('[Supabase] Warning deleting child schedules:', e);
+        }
+
+        const { error: roomsError } = await supabase.from('rooms').delete().eq('id', numId);
+        if (roomsError) {
+          const isRls = roomsError.code === '42501' || roomsError.message.includes('row-level security');
+          return {
+            success: false,
+            error: roomsError.message,
+            rlsBlocked: isRls,
+          };
+        }
+      }
+
+      // 2. Also try deleting by room_name or code if string
+      try {
+        await supabase.from('rooms').delete().eq('room_name', roomIdOrCode);
+      } catch {
+        // ignore
+      }
+
+      // 3. Fallback: also delete from 'classrooms' table if exists
+      try {
+        await supabase.from('classrooms').delete().eq('id', roomIdOrCode);
+      } catch {
+        // ignore
+      }
+
+      return { success: true };
+    } catch (err) {
+      return {
+        success: false,
+        error: err instanceof Error ? err.message : 'Unknown exception while deleting room',
+      };
+    }
+  },
+
+  /**
    * Seed sample classrooms into Supabase ('rooms' + 'devices' or 'classrooms')
    */
   async seedSampleRooms(): Promise<{

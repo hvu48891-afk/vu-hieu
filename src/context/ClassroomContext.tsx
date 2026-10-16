@@ -55,6 +55,7 @@ interface ClassroomContextType {
       targetTemp?: number;
     }>
   ) => Promise<{ success: boolean; rlsBlocked?: boolean; error?: string; roomId?: number }>;
+  deleteRoom: (classroomId: string) => Promise<{ success: boolean; rlsBlocked?: boolean; error?: string }>;
   loadDemoClassrooms: () => void;
   toggleHardCutoff: (classroomId: string) => void;
 }
@@ -300,6 +301,62 @@ export const ClassroomProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       return res;
     },
     [loadFromSupabase, addHardwareLog]
+  );
+
+  const deleteRoom = useCallback(
+    async (classroomId: string): Promise<{ success: boolean; rlsBlocked?: boolean; error?: string }> => {
+      setDbSyncStatus('connecting');
+
+      const targetRoom = classrooms.find((c) => c.id === classroomId);
+      const roomName = targetRoom?.name || classroomId;
+      const roomCode = targetRoom?.code || classroomId;
+
+      // 1. Delete from Supabase database
+      const res = await supabaseService.deleteRoom(classroomId);
+
+      if (!res.success && res.rlsBlocked) {
+        setDbSyncStatus('synced');
+        return res;
+      }
+
+      // 2. Delete from cloud database cache
+      await dbService.deleteClassroom(classroomId);
+
+      // 3. Immediately update classrooms state
+      setClassrooms((prev) => {
+        const remaining = prev.filter((c) => c.id !== classroomId);
+        return remaining;
+      });
+
+      // 4. Update selected classroom if needed
+      setSelectedClassroomId((prevSelected) => {
+        if (prevSelected === classroomId) {
+          const remaining = classrooms.filter((c) => c.id !== classroomId);
+          return remaining[0]?.id || 'empty';
+        }
+        return prevSelected;
+      });
+
+      // 5. Update supabase room count state
+      setSupabaseRoomCount((prev) => Math.max(0, prev - 1));
+
+      // 6. Log hardware event
+      addHardwareLog(
+        'smartclass/rooms/deleted',
+        JSON.stringify({
+          event: 'ROOM_DELETED',
+          classroomId,
+          code: roomCode,
+          name: roomName,
+        }),
+        'OUT',
+        'COMMAND'
+      );
+
+      setDbSyncStatus('synced');
+      return { success: true };
+    },
+    [classrooms, addHardwareLog]
   );
 
   const loadDemoClassrooms = useCallback(() => {
@@ -823,6 +880,7 @@ export const ClassroomProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         refreshFromSupabase,
         seedSupabaseClassrooms,
         addSupabaseRoom,
+        deleteRoom,
         loadDemoClassrooms,
         toggleHardCutoff,
       }}

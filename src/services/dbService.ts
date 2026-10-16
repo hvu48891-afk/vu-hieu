@@ -4,6 +4,7 @@ import {
   getDocs,
   setDoc,
   updateDoc,
+  deleteDoc,
   onSnapshot,
   writeBatch
 } from 'firebase/firestore';
@@ -94,6 +95,21 @@ export const dbService = {
     if (supabaseService.isConfigured()) {
       supabaseService.saveAllClassrooms(classrooms).catch((err: unknown) => {
         console.warn('[Supabase Sync Warning]:', err);
+      });
+    }
+  },
+
+  // Xóa 1 phòng học khỏi database Cloud và Supabase
+  async deleteClassroom(classroomId: string): Promise<void> {
+    try {
+      await deleteDoc(doc(db, CLASSROOMS_COLLECTION, classroomId));
+    } catch (error) {
+      console.warn('[Firestore] deleteClassroom error:', error);
+    }
+
+    if (supabaseService.isConfigured()) {
+      supabaseService.deleteRoom(classroomId).catch((err: unknown) => {
+        console.warn('[Supabase Delete Sync Warning]:', err);
       });
     }
   },

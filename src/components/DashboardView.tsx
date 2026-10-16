@@ -5,6 +5,7 @@ import { Classroom } from '../types';
 import { formatWatts, formatVND, calculateElectricityCost } from '../utils/calculations';
 import { RoomDetailModal } from './RoomDetailModal';
 import { AddRoomModal } from './AddRoomModal';
+import { DeleteRoomModal } from './DeleteRoomModal';
 import {
   Zap,
   Building,
@@ -30,6 +31,7 @@ import {
   Server,
   Layers,
   ArrowRight,
+  Trash2,
 } from 'lucide-react';
 
 export const DashboardView: React.FC = () => {
@@ -48,6 +50,7 @@ export const DashboardView: React.FC = () => {
     refreshFromSupabase,
     seedSupabaseClassrooms,
     addSupabaseRoom,
+    deleteRoom,
     loadDemoClassrooms,
     toggleHardCutoff,
   } = useClassroom();
@@ -62,6 +65,10 @@ export const DashboardView: React.FC = () => {
   // Modals for Supabase interactions
   const [showAddModal, setShowAddModal] = useState<boolean>(false);
   const [showSqlModal, setShowSqlModal] = useState<boolean>(false);
+  const [roomToDelete, setRoomToDelete] = useState<Classroom | null>(null);
+  const [isDeletingRoom, setIsDeletingRoom] = useState<boolean>(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [deleteRlsBlocked, setDeleteRlsBlocked] = useState<boolean>(false);
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
   const [actionMessage, setActionMessage] = useState<{ text: string; type: 'success' | 'error' | 'warning' } | null>(null);
@@ -127,6 +134,44 @@ export const DashboardView: React.FC = () => {
       });
     }
     setTimeout(() => setActionMessage(null), 5000);
+  };
+
+  const handleDeleteRoomClick = (cr: Classroom) => {
+    const perm = canPerform('DELETE_ROOM', cr.id);
+    if (!perm.allowed) {
+      setAuthNotice(perm.reason || 'Chỉ Quản trị viên mới có quyền xóa phòng học khỏi hệ thống!');
+      return;
+    }
+    setRoomToDelete(cr);
+    setDeleteError(null);
+    setDeleteRlsBlocked(false);
+  };
+
+  const handleConfirmDeleteRoom = async () => {
+    if (!roomToDelete) return;
+    setIsDeletingRoom(true);
+    setDeleteError(null);
+    setDeleteRlsBlocked(false);
+
+    const res = await deleteRoom(roomToDelete.id);
+    setIsDeletingRoom(false);
+
+    if (res.success) {
+      setActionMessage({
+        text: `Đã xóa thành công phòng học ${roomToDelete.code} (${roomToDelete.name})!`,
+        type: 'success',
+      });
+      if (modalClassroom?.id === roomToDelete.id) {
+        setModalClassroom(null);
+      }
+      setRoomToDelete(null);
+      setTimeout(() => setActionMessage(null), 4000);
+    } else if (res.rlsBlocked) {
+      setDeleteRlsBlocked(true);
+      setDeleteError('Supabase đang chặn thao tác xóa do Row Level Security (RLS).');
+    } else {
+      setDeleteError(res.error || 'Lỗi khi xóa phòng học trên Supabase.');
+    }
   };
 
 
@@ -765,6 +810,18 @@ INSERT INTO public.devices (room_id, device_name, device_type, is_on) VALUES
                         {cr.isHardCutoff ? 'Bật chờ 6.5W' : 'Ngắt CB 0W'}
                       </button>
                     )}
+
+                    {/* Delete Room Button */}
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleDeleteRoomClick(cr);
+                      }}
+                      title="Xóa phòng học này khỏi hệ thống & cơ sở dữ liệu Supabase"
+                      className="p-1.5 text-slate-500 hover:text-rose-400 hover:bg-rose-950/60 rounded border border-transparent hover:border-rose-800/60 transition-colors"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </button>
                   </div>
                 </div>
               </div>
@@ -778,6 +835,7 @@ INSERT INTO public.devices (room_id, device_name, device_type, is_on) VALUES
         <RoomDetailModal
           classroom={classrooms.find((c) => c.id === modalClassroom.id) || modalClassroom}
           onClose={() => setModalClassroom(null)}
+          onDeleteRoom={(cr) => handleDeleteRoomClick(cr)}
         />
       )}
 
@@ -792,6 +850,23 @@ INSERT INTO public.devices (room_id, device_name, device_type, is_on) VALUES
           });
           setTimeout(() => setActionMessage(null), 5000);
         }}
+      />
+
+      {/* Modal: Confirm Delete Room */}
+      <DeleteRoomModal
+        isOpen={Boolean(roomToDelete)}
+        classroom={roomToDelete}
+        onClose={() => {
+          if (!isDeletingRoom) {
+            setRoomToDelete(null);
+            setDeleteError(null);
+            setDeleteRlsBlocked(false);
+          }
+        }}
+        onConfirm={handleConfirmDeleteRoom}
+        isDeleting={isDeletingRoom}
+        errorMessage={deleteError}
+        rlsBlocked={deleteRlsBlocked}
       />
 
       {/* Modal: SQL & RLS Script for Supabase SQL Editor */}
