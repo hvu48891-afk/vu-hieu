@@ -218,7 +218,7 @@ INSERT INTO public.devices (room_id, device_name, device_type, is_on) VALUES
               </span>
             </div>
             <p className="text-xs text-slate-400 mt-0.5">
-              URL: <span className="font-mono text-slate-300">https://wigzofybhaotftzbafuv.supabase.co</span> · Tự động đồng bộ realtime qua WebSocket
+              URL: <span className="font-mono text-slate-300">https://vvxieqsotbfhymaiqngb.supabase.co</span> · Tự động đồng bộ realtime qua WebSocket
             </p>
           </div>
         </div>
@@ -816,7 +816,7 @@ INSERT INTO public.devices (room_id, device_name, device_type, is_on) VALUES
 
             <div className="space-y-2">
               <div className="flex items-center justify-between text-xs text-slate-300">
-                <span>Dán vào <strong>SQL Editor</strong> của dự án <code>wigzofybhaotftzbafuv</code>:</span>
+                <span>Dán vào <strong>SQL Editor</strong> của dự án <code>vvxieqsotbfhymaiqngb</code>:</span>
                 <button
                   onClick={() => {
                     navigator.clipboard.writeText(sqlPolicySnippet);
@@ -841,7 +841,7 @@ INSERT INTO public.devices (room_id, device_name, device_type, is_on) VALUES
                 <span>Các bước thực hiện trên Supabase:</span>
               </div>
               <ol className="list-decimal list-inside space-y-1 pl-1 text-[11px]">
-                <li>Truy cập <a href="https://supabase.com/dashboard" target="_blank" rel="noreferrer" className="text-cyan-400 underline">Supabase Dashboard</a> và chọn project <code>wigzofybhaotftzbafuv</code>.</li>
+                <li>Truy cập <a href="https://supabase.com/dashboard" target="_blank" rel="noreferrer" className="text-cyan-400 underline">Supabase Dashboard</a> và chọn project <code>vvxieqsotbfhymaiqngb</code>.</li>
                 <li>Vào tab <strong>SQL Editor</strong> ở thanh menu bên trái.</li>
                 <li>Nhấn <strong>New Query</strong>, dán đoạn mã SQL trên rồi nhấn <strong>Run</strong> (hoặc Ctrl+Enter).</li>
                 <li>Quay lại ứng dụng này và nhấn nút <strong>Đồng bộ lại</strong> trên thanh trạng thái.</li>

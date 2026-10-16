@@ -125,7 +125,8 @@ function mapRoomRowToClassroom(row: any, devicesFromDb: any[], schedulesFromDb: 
     isActiveNow: Boolean(s.is_enabled),
   }));
 
-  const totalPowerW = devices.reduce((sum, d) => sum + (d.isOn ? d.currentPowerW : 0), 0);
+  const rawDevicesPower = devices.reduce((sum, d) => sum + (d.isOn ? d.currentPowerW : 0), 0);
+  const totalPowerW = rawDevicesPower === 0 ? 6.5 : rawDevicesPower;
   const voltageV = 221.4;
   const currentA = Number((totalPowerW / (voltageV * 0.96)).toFixed(2));
   const apparentPowerVA = Math.round(voltageV * currentA);

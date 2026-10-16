@@ -1,20 +1,29 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 
 // Configuration provided by user / environment:
+// New Supabase Project: vvxieqsotbfhymaiqngb
 const rawUrl =
-  (typeof import.meta !== 'undefined' && (import.meta.env?.VITE_SUPABASE_URL || import.meta.env?.NEXT_PUBLIC_SUPABASE_URL)) ||
-  'https://wigzofybhaotftzbafuv.supabase.co';
+  (typeof import.meta !== 'undefined' &&
+    (import.meta.env?.NEXT_PUBLIC_SUPABASE_URL ||
+      import.meta.env?.VITE_SUPABASE_URL ||
+      import.meta.env?.SUPABASE_URL)) ||
+  'https://vvxieqsotbfhymaiqngb.supabase.co';
 
 const rawKey =
-  (typeof import.meta !== 'undefined' && (import.meta.env?.VITE_SUPABASE_ANON_KEY || import.meta.env?.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY)) ||
-  'sb_publishable_ueswYXRDGTw94QrH1oEZ8w_wOVro1v-';
+  (typeof import.meta !== 'undefined' &&
+    (import.meta.env?.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ||
+      import.meta.env?.VITE_SUPABASE_ANON_KEY ||
+      import.meta.env?.VITE_SUPABASE_PUBLISHABLE_KEY ||
+      import.meta.env?.SUPABASE_PUBLISHABLE_KEY ||
+      import.meta.env?.SUPABASE_ANON_KEY)) ||
+  'sb_publishable_1Mix0ghq8t1un6GGAx-foA_PbkoMLlZ';
 
 // Standard Supabase project endpoint (trimmed of /rest/v1/ suffix for @supabase/supabase-js)
-export const projectUrl = rawUrl.replace(/\/rest\/v1\/?$/, '').replace(/\/+$/, '');
-export const supabaseUrl = rawUrl;
-export const supabaseKey = rawKey;
+export const projectUrl = String(rawUrl).trim().replace(/\/rest\/v1\/?$/, '').replace(/\/+$/, '');
+export const supabaseUrl = projectUrl;
+export const supabaseKey = String(rawKey).trim();
 export const SUPABASE_URL = projectUrl;
-export const SUPABASE_ANON_KEY = rawKey;
+export const SUPABASE_ANON_KEY = supabaseKey;
 
 // Primary initialized Supabase client instance
 export const supabase: SupabaseClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);

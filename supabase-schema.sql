@@ -1,6 +1,6 @@
 -- ==============================================================
 -- SQL Schema for SmartClass Energy on Supabase (PostgreSQL)
--- Project: https://wigzofybhaotftzbafuv.supabase.co
+-- Project: https://vvxieqsotbfhymaiqngb.supabase.co
 -- ==============================================================
 
 -- 1. Create Classrooms table

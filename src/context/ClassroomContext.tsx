@@ -123,7 +123,7 @@ export const ClassroomProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       id: 'log-2',
       timestamp: new Date().toLocaleTimeString('vi-VN'),
       topic: 'smartclass/database/status',
-      payload: '{"provider":"Supabase PostgreSQL","project":"wigzofybhaotftzbafuv","tables":["rooms","devices"]}',
+      payload: '{"provider":"Supabase PostgreSQL","project":"vvxieqsotbfhymaiqngb","tables":["rooms","devices"]}',
       direction: 'IN',
       type: 'TELEMETRY',
     },

@@ -554,7 +554,7 @@ CREATE POLICY "Allow all access to devices" ON public.devices FOR ALL USING (tru
               </span>
             </div>
             <span className="text-slate-500 font-mono text-[10px] hidden sm:inline">
-              wigzofybhaotftzbafuv.supabase.co
+              vvxieqsotbfhymaiqngb.supabase.co
             </span>
           </div>
 

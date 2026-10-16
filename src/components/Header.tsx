@@ -621,7 +621,7 @@ export const Header: React.FC<HeaderProps> = ({ activeTab, setActiveTab }) => {
                     <span className="font-bold text-sm text-emerald-300">Supabase (PostgreSQL)</span>
                   </div>
                   <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-emerald-950 text-emerald-300 border border-emerald-800">
-                    wigzofybhaotftzbafuv
+                    vvxieqsotbfhymaiqngb
                   </span>
                 </div>
 
@@ -629,7 +629,7 @@ export const Header: React.FC<HeaderProps> = ({ activeTab, setActiveTab }) => {
                   <div className="flex flex-col sm:flex-row sm:justify-between gap-1">
                     <span className="text-slate-400">REST Endpoint:</span>
                     <span className="font-mono text-cyan-300 text-[11px] break-all">
-                      https://wigzofybhaotftzbafuv.supabase.co/rest/v1/
+                      https://vvxieqsotbfhymaiqngb.supabase.co/rest/v1/
                     </span>
                   </div>
                   <div className="flex flex-col sm:flex-row sm:justify-between gap-1">
