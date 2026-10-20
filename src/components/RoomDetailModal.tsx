@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Classroom, Device } from '../types';
+import { Classroom, Device, DeviceType } from '../types';
 import { useClassroom } from '../context/ClassroomContext';
 import { useAuth } from '../context/AuthContext';
 import { formatWatts } from '../utils/calculations';
@@ -21,6 +21,7 @@ import {
   ShieldAlert,
   Clock,
   LogIn,
+  Lock,
   Trash2,
 } from 'lucide-react';
 
@@ -45,31 +46,81 @@ export const RoomDetailModal: React.FC<RoomDetailModalProps> = ({
     cancelAutoShutdown,
     simulateScenario,
     toggleHardCutoff,
+    addDeviceToRoom,
+    deleteDeviceFromRoom,
   } = useClassroom();
 
   const { currentUser, canPerform, openLoginModal } = useAuth();
   const perm = canPerform('CONTROL_DEVICE', classroom.id);
   const [deniedMsg, setDeniedMsg] = useState<string | null>(null);
 
-  const handleToggle = (deviceId: string) => {
+  // Add device form states
+  const [showAddDevModal, setShowAddDevModal] = useState<boolean>(false);
+  const [newDevName, setNewDevName] = useState<string>('');
+  const [newDevType, setNewDevType] = useState<DeviceType>('light');
+  const [newDevPower, setNewDevPower] = useState<number>(150);
+  const [isSubmittingDev, setIsSubmittingDev] = useState<boolean>(false);
+
+  const checkAllowed = (): boolean => {
+    if (!currentUser) {
+      setDeniedMsg('Hệ thống đã khóa điều khiển: Bạn đã đăng xuất hoặc chưa đăng nhập! Vui lòng đăng nhập để thao tác thiết bị.');
+      openLoginModal();
+      return false;
+    }
+    if (currentUser.role === 'STUDENT') {
+      setDeniedMsg('Tài khoản Sinh viên ở chế độ Chỉ xem. Quyền đóng/ngắt thiết bị Relay 220V và Aptomat bị khóa!');
+      return false;
+    }
     if (!perm.allowed) {
       setDeniedMsg(perm.reason || 'Bạn không có quyền điều khiển thiết bị tại phòng này!');
-      return;
+      return false;
     }
+    return true;
+  };
+
+  const handleToggle = (deviceId: string) => {
+    if (!checkAllowed()) return;
     toggleDevice(classroom.id, deviceId);
   };
 
   const handleAllToggle = () => {
-    if (!perm.allowed) {
-      setDeniedMsg(perm.reason || 'Bạn không có quyền điều khiển phòng học này!');
-      return;
-    }
+    if (!checkAllowed()) return;
     const anyOn = classroom.devices.some((d) => d.isOn);
     if (anyOn) {
       turnAllOff(classroom.id);
     } else {
       turnAllOn(classroom.id);
     }
+  };
+
+  const handleAcTemp = (deviceId: string, targetTemp: number) => {
+    if (!checkAllowed()) return;
+    setAcTemperature(classroom.id, deviceId, targetTemp);
+  };
+
+  const handleAcMode = (deviceId: string, mode: 'cool' | 'eco' | 'fan') => {
+    if (!checkAllowed()) return;
+    setAcMode(classroom.id, deviceId, mode);
+  };
+
+  const handleFanSpeedChange = (deviceId: string, speed: 1 | 2 | 3) => {
+    if (!checkAllowed()) return;
+    setFanSpeed(classroom.id, deviceId, speed);
+  };
+
+  const handleHardCutoffClick = () => {
+    if (!checkAllowed()) return;
+    toggleHardCutoff(classroom.id);
+  };
+
+  const handleEmergencyTurnOff = () => {
+    if (!checkAllowed()) return;
+    turnAllOff(classroom.id);
+  };
+
+  const handleCancelShutdown = () => {
+    if (!checkAllowed()) return;
+    cancelAutoShutdown(classroom.id);
   };
 
   const getDeviceIcon = (device: Device) => {
@@ -178,14 +229,14 @@ export const RoomDetailModal: React.FC<RoomDetailModalProps> = ({
             </div>
             <div className="flex items-center gap-2 shrink-0">
               <button
-                onClick={() => turnAllOff(classroom.id)}
-                className="px-3 py-1 bg-rose-600 hover:bg-rose-500 text-white rounded font-medium transition-colors"
+                onClick={handleEmergencyTurnOff}
+                className="px-3 py-1 bg-rose-600 hover:bg-rose-500 text-white rounded font-medium transition-colors cursor-pointer"
               >
                 Ngắt điện ngay
               </button>
               <button
-                onClick={() => cancelAutoShutdown(classroom.id)}
-                className="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded transition-colors"
+                onClick={handleCancelShutdown}
+                className="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded transition-colors cursor-pointer"
               >
                 Tạm hoãn ngắt
               </button>
@@ -348,8 +399,8 @@ export const RoomDetailModal: React.FC<RoomDetailModalProps> = ({
                 </div>
 
                 <button
-                  onClick={() => toggleHardCutoff(classroom.id)}
-                  className={`px-3 py-2 text-xs font-semibold rounded-lg border transition-colors shrink-0 flex items-center justify-center gap-1.5 ${
+                  onClick={handleHardCutoffClick}
+                  className={`px-3 py-2 text-xs font-semibold rounded-lg border transition-colors shrink-0 flex items-center justify-center gap-1.5 cursor-pointer ${
                     classroom.isHardCutoff
                       ? 'bg-blue-600 hover:bg-blue-500 text-white border-blue-500 shadow-sm'
                       : 'bg-rose-950/70 hover:bg-rose-900 text-rose-300 border-rose-800'
@@ -370,9 +421,20 @@ export const RoomDetailModal: React.FC<RoomDetailModalProps> = ({
               <h4 className="text-xs font-semibold uppercase tracking-wider text-slate-400">
                 Danh Sách Thiết Bị & Tiếp Điểm Relay 220V
               </h4>
-              <span className="text-xs text-slate-400 font-mono">
-                {classroom.devices.filter((d) => d.isOn).length} / {classroom.devices.length} Đang đóng tiếp điểm
-              </span>
+              <div className="flex items-center gap-2.5">
+                <span className="text-xs text-slate-400 font-mono">
+                  {classroom.devices.filter((d) => d.isOn).length} / {classroom.devices.length} Đang đóng tiếp điểm
+                </span>
+                {currentUser && currentUser.role !== 'STUDENT' && (
+                  <button
+                    onClick={() => setShowAddDevModal(true)}
+                    className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-cyan-950/70 hover:bg-cyan-900 border border-cyan-800/80 text-cyan-300 text-xs font-semibold transition-colors shadow-sm"
+                  >
+                    <Plus className="h-3.5 w-3.5" />
+                    <span>Thêm Thiết Bị</span>
+                  </button>
+                )}
+              </div>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -432,18 +494,34 @@ export const RoomDetailModal: React.FC<RoomDetailModalProps> = ({
                         </div>
                       </div>
 
-                      {/* Toggle Button */}
-                      <button
-                        onClick={() => handleToggle(device.id)}
-                        className={`px-3 py-1.5 text-xs font-semibold rounded-md flex items-center gap-1.5 transition-colors ${
-                          device.isOn
-                            ? 'bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-bold'
-                            : 'bg-slate-800 hover:bg-slate-700 text-slate-300'
-                        }`}
-                      >
-                        <Power className="h-3 w-3" />
-                        <span>{device.isOn ? 'BẬT' : 'TẮT'}</span>
-                      </button>
+                      {/* Toggle & Action Buttons */}
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        <button
+                          onClick={() => handleToggle(device.id)}
+                          className={`px-3 py-1.5 text-xs font-semibold rounded-md flex items-center gap-1.5 transition-colors ${
+                            device.isOn
+                              ? 'bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-bold'
+                              : 'bg-slate-800 hover:bg-slate-700 text-slate-300'
+                          }`}
+                        >
+                          <Power className="h-3 w-3" />
+                          <span>{device.isOn ? 'BẬT' : 'TẮT'}</span>
+                        </button>
+
+                        {currentUser && currentUser.role !== 'STUDENT' && (
+                          <button
+                            onClick={async () => {
+                              if (window.confirm(`Xóa thiết bị "${device.name}" khỏi phòng ${classroom.name}?`)) {
+                                await deleteDeviceFromRoom(classroom.id, device.id);
+                              }
+                            }}
+                            className="p-1.5 text-slate-500 hover:text-rose-400 rounded hover:bg-slate-800 transition-colors"
+                            title="Xóa thiết bị khỏi database"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </button>
+                        )}
+                      </div>
                     </div>
 
                     {/* Air Conditioner Dedicated Controls */}
@@ -455,13 +533,12 @@ export const RoomDetailModal: React.FC<RoomDetailModalProps> = ({
                             <button
                               disabled={!device.isOn}
                               onClick={() =>
-                                setAcTemperature(
-                                  classroom.id,
+                                handleAcTemp(
                                   device.id,
                                   device.acSettings!.targetTemp - 1
                                 )
                               }
-                              className="p-1 hover:bg-slate-800 rounded text-slate-300 disabled:opacity-30"
+                              className="p-1 hover:bg-slate-800 rounded text-slate-300 disabled:opacity-30 cursor-pointer"
                             >
                               <Minus className="h-3 w-3" />
                             </button>
@@ -471,13 +548,12 @@ export const RoomDetailModal: React.FC<RoomDetailModalProps> = ({
                             <button
                               disabled={!device.isOn}
                               onClick={() =>
-                                setAcTemperature(
-                                  classroom.id,
+                                handleAcTemp(
                                   device.id,
                                   device.acSettings!.targetTemp + 1
                                 )
                               }
-                              className="p-1 hover:bg-slate-800 rounded text-slate-300 disabled:opacity-30"
+                              className="p-1 hover:bg-slate-800 rounded text-slate-300 disabled:opacity-30 cursor-pointer"
                             >
                               <Plus className="h-3 w-3" />
                             </button>
@@ -490,8 +566,8 @@ export const RoomDetailModal: React.FC<RoomDetailModalProps> = ({
                             <button
                               key={mode}
                               disabled={!device.isOn}
-                              onClick={() => setAcMode(classroom.id, device.id, mode)}
-                              className={`px-2 py-0.5 rounded text-[11px] uppercase font-medium transition-colors ${
+                              onClick={() => handleAcMode(device.id, mode)}
+                              className={`px-2 py-0.5 rounded text-[11px] uppercase font-medium transition-colors cursor-pointer ${
                                 device.acSettings?.mode === mode
                                   ? 'bg-slate-800 text-emerald-400 font-semibold'
                                   : 'text-slate-400 hover:text-slate-200'
@@ -513,8 +589,8 @@ export const RoomDetailModal: React.FC<RoomDetailModalProps> = ({
                             <button
                               key={spd}
                               disabled={!device.isOn}
-                              onClick={() => setFanSpeed(classroom.id, device.id, spd)}
-                              className={`px-2 py-0.5 rounded text-[11px] font-medium transition-colors ${
+                              onClick={() => handleFanSpeedChange(device.id, spd)}
+                              className={`px-2 py-0.5 rounded text-[11px] font-medium transition-colors cursor-pointer ${
                                 device.fanSpeed === spd
                                   ? 'bg-slate-800 text-emerald-400 font-bold'
                                   : 'text-slate-400 hover:text-white'
@@ -608,6 +684,107 @@ export const RoomDetailModal: React.FC<RoomDetailModalProps> = ({
           </div>
         </div>
       </div>
+
+      {/* Modal: Thêm Thiết Bị Vào Phòng */}
+      {showAddDevModal && (
+        <div className="fixed inset-0 z-60 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-slate-900 border border-slate-750 rounded-2xl shadow-2xl w-full max-w-md p-6 text-slate-100 space-y-4 animate-scaleUp">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-800">
+              <h4 className="font-bold text-white text-sm flex items-center gap-2">
+                <Plus className="h-4 w-4 text-cyan-400" />
+                Thêm Thiết Bị Vào Phòng {classroom.name}
+              </h4>
+              <button onClick={() => setShowAddDevModal(false)} className="text-slate-400 hover:text-white">
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <form
+              onSubmit={async (e) => {
+                e.preventDefault();
+                if (!newDevName.trim()) return;
+                setIsSubmittingDev(true);
+                const res = await addDeviceToRoom(classroom.id, {
+                  name: newDevName.trim(),
+                  type: newDevType,
+                  powerRatingW: Number(newDevPower) || 100,
+                });
+                setIsSubmittingDev(false);
+                if (res.success) {
+                  setShowAddDevModal(false);
+                  setNewDevName('');
+                } else {
+                  setDeniedMsg(res.error || 'Lỗi thêm thiết bị.');
+                }
+              }}
+              className="space-y-3.5"
+            >
+              <div>
+                <label className="block text-xs font-semibold text-slate-300 mb-1">
+                  Tên Thiết Bị (device_name) <span className="text-rose-400">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={newDevName}
+                  onChange={(e) => setNewDevName(e.target.value)}
+                  placeholder="Ví dụ: Đèn LED Tuýp Rạng Đông 18W"
+                  className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-cyan-500"
+                  required
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 mb-1">
+                    Loại (device_type)
+                  </label>
+                  <select
+                    value={newDevType}
+                    onChange={(e) => setNewDevType(e.target.value as DeviceType)}
+                    className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-cyan-500"
+                  >
+                    <option value="light">Chiếu Sáng (Light)</option>
+                    <option value="ac">Điều Hòa (AC)</option>
+                    <option value="fan">Quạt Trần (Fan)</option>
+                    <option value="projector">Máy Chiếu (Projector)</option>
+                    <option value="aux">Ổ Cắm Phụ (Aux)</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 mb-1">
+                    Công Suất (W)
+                  </label>
+                  <input
+                    type="number"
+                    value={newDevPower}
+                    onChange={(e) => setNewDevPower(Number(e.target.value))}
+                    className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-cyan-500 font-mono"
+                    required
+                  />
+                </div>
+              </div>
+
+              <div className="pt-2 flex justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => setShowAddDevModal(false)}
+                  className="px-3.5 py-2 text-xs rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300"
+                >
+                  Hủy
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSubmittingDev}
+                  className="px-4 py-2 text-xs font-bold rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white shadow-md shadow-cyan-950 disabled:opacity-50"
+                >
+                  {isSubmittingDev ? 'Đang lưu...' : 'Thêm Vào Database'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

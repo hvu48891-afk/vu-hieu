@@ -57,7 +57,7 @@ export const PERMISSION_LIST: PermissionMeta[] = [
   {
     action: 'SIMULATE_SCENARIO',
     name: 'Kích hoạt mô phỏng kiểm thử phần cứng',
-    description: 'Mô phỏng sự kiện cảm biến PIR (sinh viên vào phòng, quên tắt điện khi tan học) để nghiệm thu đồ án.',
+    description: 'Mô phỏng sự kiện cảm biến PIR (sinh viên vào phòng, quên tắt điện khi tan học) để nghiệm thu hệ thống.',
     category: 'Vận hành & Tự động',
     riskLevel: 'Thấp',
   },
@@ -259,6 +259,7 @@ interface AuthContextType {
     action: PermissionAction,
     roomId?: string
   ) => { allowed: boolean; reason?: string };
+  isReadOnlySession: boolean;
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
@@ -283,18 +284,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return DEMO_USERS;
   });
 
-  // Load current user session
-  const [currentUser, setCurrentUser] = useState<User | null>(() => {
-    try {
-      const saved = localStorage.getItem(STORAGE_SESSION_KEY);
-      if (saved) {
-        return JSON.parse(saved);
-      }
-    } catch {
-      // ignore
-    }
-    return DEMO_USERS[0]; // Default to Admin
-  });
+  // Khi khởi động web luôn bắt đầu bằng đăng nhập trước
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
 
   const [isLoginModalOpen, setIsLoginModalOpen] = useState<boolean>(false);
   const [isPermissionsModalOpen, setIsPermissionsModalOpen] = useState<boolean>(false);
@@ -389,17 +380,28 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, [users, currentUser]);
 
   const login = useCallback(
-    (email: string, password?: string): { success: boolean; error?: string } => {
-      const trimmedEmail = email.trim().toLowerCase();
+    (identifier: string, password?: string): { success: boolean; error?: string } => {
+      const cleanInput = identifier.trim().toLowerCase();
+      if (!cleanInput) {
+        return { success: false, error: 'Vui lòng nhập địa chỉ Email hoặc Tên đăng nhập!' };
+      }
 
-      // Find in existing users list
-      const matched = users.find((u) => u.email.toLowerCase() === trimmedEmail);
+      // Tìm trong danh sách tài khoản đã đăng ký (email, username, hoặc tiền tố email)
+      const matched = users.find((u) => {
+        const uEmail = (u.email || '').toLowerCase().trim();
+        const uUsername = (u.username || '').toLowerCase().trim();
+        const uPrefix = uEmail.split('@')[0];
+        return uEmail === cleanInput || (uUsername && uUsername === cleanInput) || uPrefix === cleanInput;
+      });
 
       if (matched) {
-        if (password && matched.password && password !== matched.password && password !== '123456') {
+        const inputPass = (password || '').trim();
+        const expectedPass = (matched.password || '').trim();
+        // Kiểm tra mật khẩu (khớp mật khẩu đã đăng ký, hoặc 123456)
+        if (expectedPass && inputPass && inputPass !== expectedPass && inputPass !== '123456') {
           return {
             success: false,
-            error: 'Mật khẩu không chính xác! (Gợi ý demo: "' + matched.password + '" hoặc "123456")',
+            error: `Mật khẩu không chính xác cho tài khoản "${matched.name}". Vui lòng kiểm tra lại!`,
           };
         }
         setCurrentUser(matched);
@@ -407,29 +409,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return { success: true };
       }
 
-      // If custom university email provided and not yet created, register as LECTURER
-      if (trimmedEmail.includes('@')) {
-        const initials = trimmedEmail.slice(0, 2).toUpperCase();
-        const newUser: User = {
-          id: 'user-' + Date.now(),
-          name: email.split('@')[0].toUpperCase(),
-          email: trimmedEmail,
-          password: password || '123456',
-          role: 'LECTURER',
-          roleTitle: 'Giảng Viên Khách Mời',
-          department: 'Trường Đại Học',
-          avatarInitials: initials,
-          assignedRooms: ['*'],
-          description: 'Tài khoản Giảng viên tạo mới từ email ' + trimmedEmail,
-          createdAt: new Date().toISOString().split('T')[0],
-        };
-        setUsers((prev) => [newUser, ...prev]);
-        setCurrentUser(newUser);
-        setIsLoginModalOpen(false);
-        return { success: true };
-      }
-
-      return { success: false, error: 'Vui lòng nhập định dạng email hợp lệ (ví dụ: admin@campus.edu.vn)' };
+      return {
+        success: false,
+        error: `Tài khoản "${identifier}" chưa được đăng ký trong hệ thống. Vui lòng chuyển sang tab "Đăng Ký Tài Khoản" hoặc kiểm tra lại thông tin.`,
+      };
     },
     [users]
   );
@@ -858,15 +841,29 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       roomId?: string
     ): { allowed: boolean; reason?: string } => {
       if (!currentUser) {
+        if (action === 'VIEW_TELEMETRY') {
+          return { allowed: true };
+        }
         return {
           allowed: false,
-          reason: 'Vui lòng đăng nhập hệ thống để thực hiện thao tác này.',
+          reason: 'Hệ thống đã khóa điều khiển: Bạn đã đăng xuất hoặc chưa đăng nhập! Vui lòng đăng nhập để thao tác hệ thống.',
         };
       }
 
       // Root ADMIN has full system-wide permissions
       if (currentUser.role === 'ADMIN') {
         return { allowed: true };
+      }
+
+      // STUDENT role is STRICTLY READ-ONLY: NO operations allowed on the system!
+      if (currentUser.role === 'STUDENT') {
+        if (action === 'VIEW_TELEMETRY') {
+          return { allowed: true };
+        }
+        return {
+          allowed: false,
+          reason: 'Tài khoản Sinh viên ở chế độ Chỉ xem. Mọi thao tác đóng/ngắt thiết bị Relay 220V, Aptomat và cấu hình hệ thống bị khóa theo quy định!',
+        };
       }
 
       // Check user custom permissions override first
@@ -989,6 +986,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         loginWithGoogleEmail,
         isGoogleAuthLoading,
         canPerform,
+        isReadOnlySession: !currentUser || currentUser.role === 'STUDENT',
       }}
     >
       {children}

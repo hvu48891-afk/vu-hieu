@@ -1,5 +1,5 @@
 import { getSupabaseClient, isSupabaseConfigured } from '../lib/supabase';
-import { Classroom, Device, HardwareLog } from '../types';
+import { Classroom, Device, HardwareLog, DbRoom, DbDevice, DbSchedule, DbUser, DbActivityLog } from '../types';
 import { INITIAL_CLASSROOMS } from '../data/mockData';
 
 // Helper to create realistic devices for a room if devices table does not have records yet
@@ -581,23 +581,16 @@ export const supabaseService = {
     if (!supabase) return false;
 
     try {
-      const { error } = await supabase.from('hardware_logs').insert([
+      // Write directly to user's connected activity_logs table
+      await supabase.from('activity_logs').insert([
         {
-          topic: log.topic,
-          payload: log.payload,
-          direction: log.direction,
-          type: log.type,
-          created_at: new Date().toISOString(),
+          control_source: 'SYSTEM',
+          action_performed: `${log.type}: [${log.topic}] ${log.payload.slice(0, 100)}`,
         },
       ]);
-
-      if (error) {
-        console.warn('[Supabase] logHardwareEvent error:', error.message);
-        return false;
-      }
       return true;
     } catch (err) {
-      console.warn('[Supabase] logHardwareEvent exception:', err);
+      console.warn('[Supabase] logHardwareEvent notice:', err);
       return false;
     }
   },
@@ -701,4 +694,255 @@ export const supabaseService = {
       return { success: false, error: err instanceof Error ? err.message : 'Error deleting user' };
     }
   },
+
+  /**
+   * Update a user in Supabase 'users' table
+   */
+  async updateUser(id: number, updates: Partial<DbUser>): Promise<{ success: boolean; error?: string }> {
+    const supabase = getSupabaseClient();
+    if (!supabase) return { success: false, error: 'Client not configured' };
+
+    try {
+      const { error } = await supabase.from('users').update(updates).eq('id', id);
+      if (error) return { success: false, error: error.message };
+      return { success: true };
+    } catch (err) {
+      return { success: false, error: err instanceof Error ? err.message : 'Error updating user' };
+    }
+  },
+
+  // ============================================================================
+  // Table: 'rooms' CRUD methods
+  // ============================================================================
+
+  async fetchRawRooms(): Promise<DbRoom[]> {
+    const supabase = getSupabaseClient();
+    if (!supabase) return [];
+    try {
+      const { data, error } = await supabase.from('rooms').select('*').order('id', { ascending: true });
+      if (!error && Array.isArray(data)) return data as DbRoom[];
+    } catch (e) {
+      console.warn('[Supabase] fetchRawRooms error:', e);
+    }
+    return [];
+  },
+
+  async updateRoom(id: number, updates: { room_name?: string; building?: string; is_active?: boolean }): Promise<{ success: boolean; error?: string }> {
+    const supabase = getSupabaseClient();
+    if (!supabase) return { success: false, error: 'Client not configured' };
+    try {
+      const { error } = await supabase.from('rooms').update(updates).eq('id', id);
+      if (error) return { success: false, error: error.message };
+      return { success: true };
+    } catch (err) {
+      return { success: false, error: err instanceof Error ? err.message : 'Error updating room' };
+    }
+  },
+
+  // ============================================================================
+  // Table: 'devices' CRUD methods
+  // ============================================================================
+
+  async fetchRawDevices(roomId?: number): Promise<DbDevice[]> {
+    const supabase = getSupabaseClient();
+    if (!supabase) return [];
+    try {
+      let query = supabase.from('devices').select('*').order('id', { ascending: true });
+      if (roomId != null) {
+        query = query.eq('room_id', roomId);
+      }
+      const { data, error } = await query;
+      if (!error && Array.isArray(data)) return data as DbDevice[];
+    } catch (e) {
+      console.warn('[Supabase] fetchRawDevices error:', e);
+    }
+    return [];
+  },
+
+  async createDevice(deviceData: {
+    room_id: number;
+    device_name: string;
+    device_type: string;
+    power_rating_watts: number;
+    is_on?: boolean;
+    target_temperature?: number | null;
+  }): Promise<{ success: boolean; data?: DbDevice; error?: string }> {
+    const supabase = getSupabaseClient();
+    if (!supabase) return { success: false, error: 'Client not configured' };
+    try {
+      const { data, error } = await supabase
+        .from('devices')
+        .insert([
+          {
+            room_id: deviceData.room_id,
+            device_name: deviceData.device_name.trim(),
+            device_type: deviceData.device_type,
+            power_rating_watts: deviceData.power_rating_watts,
+            is_on: deviceData.is_on ?? false,
+            target_temperature: deviceData.target_temperature ?? (deviceData.device_type === 'ac' ? 24 : null),
+          },
+        ])
+        .select();
+
+      if (error) return { success: false, error: error.message };
+      return { success: true, data: data?.[0] as DbDevice };
+    } catch (err) {
+      return { success: false, error: err instanceof Error ? err.message : 'Error creating device' };
+    }
+  },
+
+  async updateDevice(id: number, updates: Partial<DbDevice>): Promise<{ success: boolean; error?: string }> {
+    const supabase = getSupabaseClient();
+    if (!supabase) return { success: false, error: 'Client not configured' };
+    try {
+      const { error } = await supabase.from('devices').update(updates).eq('id', id);
+      if (error) return { success: false, error: error.message };
+      return { success: true };
+    } catch (err) {
+      return { success: false, error: err instanceof Error ? err.message : 'Error updating device' };
+    }
+  },
+
+  async deleteDevice(id: number): Promise<{ success: boolean; error?: string }> {
+    const supabase = getSupabaseClient();
+    if (!supabase) return { success: false, error: 'Client not configured' };
+    try {
+      const { error } = await supabase.from('devices').delete().eq('id', id);
+      if (error) return { success: false, error: error.message };
+      return { success: true };
+    } catch (err) {
+      return { success: false, error: err instanceof Error ? err.message : 'Error deleting device' };
+    }
+  },
+
+  // ============================================================================
+  // Table: 'schedules' CRUD methods
+  // ============================================================================
+
+  async fetchSchedules(roomId?: number): Promise<DbSchedule[]> {
+    const supabase = getSupabaseClient();
+    if (!supabase) return [];
+    try {
+      let query = supabase.from('schedules').select('*').order('id', { ascending: true });
+      if (roomId != null) {
+        query = query.eq('room_id', roomId);
+      }
+      const { data, error } = await query;
+      if (!error && Array.isArray(data)) return data as DbSchedule[];
+    } catch (e) {
+      console.warn('[Supabase] fetchSchedules error:', e);
+    }
+    return [];
+  },
+
+  async createSchedule(scheduleData: {
+    room_id: number;
+    device_id?: number | null;
+    schedule_name: string;
+    start_time: string;
+    end_time: string;
+    days_of_week: string;
+    action_command: 'AUTO_POWER_ON' | 'AUTO_POWER_OFF' | 'AC_SET_TEMP' | 'ALL_OFF';
+    target_value?: string | number | null;
+    is_enabled?: boolean;
+  }): Promise<{ success: boolean; data?: DbSchedule; error?: string }> {
+    const supabase = getSupabaseClient();
+    if (!supabase) return { success: false, error: 'Client not configured' };
+    try {
+      const { data, error } = await supabase
+        .from('schedules')
+        .insert([
+          {
+            room_id: scheduleData.room_id,
+            device_id: scheduleData.device_id ?? null,
+            schedule_name: scheduleData.schedule_name.trim(),
+            start_time: scheduleData.start_time,
+            end_time: scheduleData.end_time,
+            days_of_week: scheduleData.days_of_week,
+            action_command: scheduleData.action_command,
+            target_value: scheduleData.target_value ?? null,
+            is_enabled: scheduleData.is_enabled ?? true,
+          },
+        ])
+        .select();
+
+      if (error) return { success: false, error: error.message };
+      return { success: true, data: data?.[0] as DbSchedule };
+    } catch (err) {
+      return { success: false, error: err instanceof Error ? err.message : 'Error creating schedule' };
+    }
+  },
+
+  async toggleScheduleEnabled(id: number, isEnabled: boolean): Promise<{ success: boolean; error?: string }> {
+    const supabase = getSupabaseClient();
+    if (!supabase) return { success: false, error: 'Client not configured' };
+    try {
+      const { error } = await supabase.from('schedules').update({ is_enabled: isEnabled }).eq('id', id);
+      if (error) return { success: false, error: error.message };
+      return { success: true };
+    } catch (err) {
+      return { success: false, error: err instanceof Error ? err.message : 'Error updating schedule' };
+    }
+  },
+
+  async deleteSchedule(id: number): Promise<{ success: boolean; error?: string }> {
+    const supabase = getSupabaseClient();
+    if (!supabase) return { success: false, error: 'Client not configured' };
+    try {
+      const { error } = await supabase.from('schedules').delete().eq('id', id);
+      if (error) return { success: false, error: error.message };
+      return { success: true };
+    } catch (err) {
+      return { success: false, error: err instanceof Error ? err.message : 'Error deleting schedule' };
+    }
+  },
+
+  // ============================================================================
+  // Table: 'activity_logs' CRUD methods
+  // ============================================================================
+
+  async fetchActivityLogs(limit: number = 50): Promise<DbActivityLog[]> {
+    const supabase = getSupabaseClient();
+    if (!supabase) return [];
+    try {
+      const { data, error } = await supabase
+        .from('activity_logs')
+        .select('*')
+        .order('id', { ascending: false })
+        .limit(limit);
+
+      if (!error && Array.isArray(data)) return data as DbActivityLog[];
+    } catch (e) {
+      console.warn('[Supabase] fetchActivityLogs error:', e);
+    }
+    return [];
+  },
+
+  async logActivity(logData: {
+    device_id?: number | null;
+    user_id?: number | null;
+    control_source: 'WEB_ADMIN' | 'TOUCH_PANEL' | 'SCHEDULE_AUTO' | 'EMERGENCY_BUTTON' | 'SYSTEM';
+    action_performed: string;
+  }): Promise<{ success: boolean; error?: string }> {
+    const supabase = getSupabaseClient();
+    if (!supabase) return { success: false, error: 'Client not configured' };
+    try {
+      const { error } = await supabase.from('activity_logs').insert([
+        {
+          device_id: logData.device_id ?? null,
+          user_id: logData.user_id ?? null,
+          control_source: logData.control_source,
+          action_performed: logData.action_performed,
+        },
+      ]);
+      if (error) {
+        console.warn('[Supabase] logActivity notice:', error.message);
+        return { success: false, error: error.message };
+      }
+      return { success: true };
+    } catch (err) {
+      return { success: false, error: err instanceof Error ? err.message : 'Error logging activity' };
+    }
+  },
 };
+

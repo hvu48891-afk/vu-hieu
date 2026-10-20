@@ -232,7 +232,7 @@ export const ScheduleAutomationView: React.FC = () => {
             </h3>
 
             <p className="text-xs text-slate-400">
-              Thử nghiệm trực tiếp cho Hội đồng bảo vệ đồ án hoặc kiểm tra vận hành hệ thống:
+              Thử nghiệm trực tiếp các tình huống kiểm tra vận hành hệ thống:
             </p>
 
             <div className="space-y-2">

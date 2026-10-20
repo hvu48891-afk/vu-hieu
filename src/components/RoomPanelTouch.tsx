@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useClassroom } from '../context/ClassroomContext';
+import { useAuth } from '../context/AuthContext';
 import { formatWatts } from '../utils/calculations';
 import {
   Lightbulb,
@@ -16,10 +17,13 @@ import {
   ChevronDown,
   Volume2,
   Plus,
+  Lock,
+  LogIn,
 } from 'lucide-react';
 import { AddRoomModal } from './AddRoomModal';
 
 export const RoomPanelTouch: React.FC = () => {
+  const { currentUser, canPerform, openLoginModal } = useAuth();
   const {
     classrooms,
     selectedClassroomId,
@@ -82,8 +86,16 @@ export const RoomPanelTouch: React.FC = () => {
           </div>
 
           <button
-            onClick={() => setShowAddModal(true)}
-            className="flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium rounded-lg bg-emerald-600/90 hover:bg-emerald-500 text-white transition-colors"
+            onClick={() => {
+              if (!currentUser) {
+                openLoginModal();
+                return;
+              }
+              const perm = canPerform('ADD_ROOM');
+              if (!perm.allowed) return;
+              setShowAddModal(true);
+            }}
+            className="flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium rounded-lg bg-emerald-600/90 hover:bg-emerald-500 text-white transition-colors cursor-pointer"
             title="Thêm phòng học mới vào hệ thống Supabase"
           >
             <Plus className="h-3.5 w-3.5" />
@@ -114,6 +126,28 @@ export const RoomPanelTouch: React.FC = () => {
 
         {/* Inner LCD / OLED Screen Area */}
         <div className="bg-slate-950 rounded-2xl border border-slate-800 p-4 sm:p-6 text-slate-100 shadow-inner space-y-6">
+          {/* Read-Only / Lock Banner on Touch Screen */}
+          {!currentUser && (
+            <div className="bg-amber-950/70 border border-amber-600/70 rounded-xl p-3 flex items-center justify-between gap-3 text-amber-200 text-xs">
+              <div className="flex items-center gap-2">
+                <Lock className="h-4 w-4 text-amber-400 shrink-0" />
+                <span><strong>Bảng cảm ứng đang KHÓA (Đã đăng xuất):</strong> Bạn chỉ có thể theo dõi trạng thái thiết bị. Vui lòng đăng nhập để thao tác.</span>
+              </div>
+              <button
+                onClick={openLoginModal}
+                className="px-2.5 py-1 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold rounded text-[11px] shrink-0 cursor-pointer"
+              >
+                Đăng nhập
+              </button>
+            </div>
+          )}
+
+          {currentUser?.role === 'STUDENT' && (
+            <div className="bg-blue-950/70 border border-blue-600/70 rounded-xl p-3 flex items-center gap-2 text-blue-200 text-xs">
+              <ShieldAlert className="h-4 w-4 text-blue-400 shrink-0" />
+              <span><strong>Tài khoản Sinh viên ({currentUser.name}):</strong> Chế độ Chỉ xem dữ liệu. Toàn bộ phím cảm ứng Relay 220V bị vô hiệu hóa để đảm bảo an toàn.</span>
+            </div>
+          )}
           {/* Top Panel Bar: Clock, Room Name, Subject, Environmental Sensors */}
           <div className="flex flex-col md:flex-row md:items-center justify-between pb-4 border-b border-slate-800/80 gap-3">
             <div>

@@ -8,9 +8,9 @@ export interface Device {
   isOn: boolean;
   powerRatingW: number; // Công suất định mức danh định (W)
   currentPowerW: number; // Công suất tác dụng thực tế (W)
-  nominalCurrentA: number; // Dòng điện danh định (A) ở 220V
-  relayPin: string; // Chân Relay trên ESP32 (vd: GPIO 16, GPIO 21 Contactor 30A)
-  relayState: 'OPEN' | 'CLOSED'; // OPEN = Ngắt, CLOSED = Đóng mạch 220V
+  nominalCurrentA: number; // Dòng điện danh định (A) ở 24V
+  relayPin: string; // Chân Relay trên ESP32 (vd: GPIO 16, GPIO 21 Contactor 24V)
+  relayState: 'OPEN' | 'CLOSED'; // OPEN = Ngắt, CLOSED = Đóng mạch 24V
   acSettings?: {
     targetTemp: number; // 16 - 30 °C
     mode: 'cool' | 'eco' | 'fan';
@@ -57,8 +57,8 @@ export interface Classroom {
   isVacant: boolean; // Phòng đang trống
   vacantDurationMinutes: number; // Số phút phòng trống liên tục
   
-  // Thông số đo lường điện năng chuẩn công nghiệp (PZEM-004T v3.0)
-  voltageV: number; // Điện áp lưới thực tế (V) ~ 220 - 222V
+  // Thông số đo lường điện năng chuẩn công nghiệp
+  voltageV: number; // Điện áp hệ thống thực tế (V) ~ 23.8 - 24.2V (Chuẩn 24V)
   currentA: number; // Dòng điện tổng (A)
   totalPowerW: number; // Công suất tác dụng P (W)
   apparentPowerVA: number; // Công suất biểu kiến S = V * I (VA)
@@ -133,6 +133,7 @@ export interface User {
   id: string;
   name: string;
   email: string;
+  username?: string;
   password?: string;
   role: UserRole;
   roleTitle: string; // Tên chức danh tiếng Việt (vd: Quản Trị Viên Cơ Sở Vật Chất)
@@ -144,5 +145,61 @@ export interface User {
   customPermissions?: Partial<Record<PermissionAction, boolean>>;
   description?: string;
   createdAt?: string;
+}
+
+// ============================================================================
+// Database Table Interfaces (Direct mapping to Supabase Tables)
+// ============================================================================
+
+export interface DbRoom {
+  id: number;
+  room_name: string;
+  building: string;
+  is_active: boolean;
+  created_at?: string;
+}
+
+export interface DbDevice {
+  id: number;
+  room_id: number;
+  device_name: string;
+  device_type: DeviceType;
+  is_on: boolean;
+  target_temperature?: number | null;
+  power_rating_watts: number;
+  created_at?: string;
+}
+
+export interface DbSchedule {
+  id: number;
+  room_id: number;
+  device_id?: number | null;
+  schedule_name: string;
+  start_time: string;
+  end_time: string;
+  days_of_week: string;
+  action_command: 'AUTO_POWER_ON' | 'AUTO_POWER_OFF' | 'AC_SET_TEMP' | 'ALL_OFF';
+  target_value?: string | number | null;
+  is_enabled: boolean;
+  created_at?: string;
+}
+
+export interface DbUser {
+  id: number;
+  username: string;
+  full_name: string;
+  email: string;
+  role: string;
+  is_active: boolean;
+  created_at?: string;
+}
+
+export interface DbActivityLog {
+  id: number;
+  device_id?: number | null;
+  user_id?: number | null;
+  control_source: 'WEB_ADMIN' | 'TOUCH_PANEL' | 'SCHEDULE_AUTO' | 'EMERGENCY_BUTTON' | 'SYSTEM';
+  action_performed: string;
+  created_at: string;
 }
 

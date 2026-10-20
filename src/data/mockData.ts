@@ -14,7 +14,7 @@ export const INITIAL_CLASSROOMS: Classroom[] = [
     hasMotion: 42,
     isVacant: false,
     vacantDurationMinutes: 0,
-    voltageV: 221.4,
+    voltageV: 24.1,
     currentA: 8.85,
     totalPowerW: 1880,
     apparentPowerVA: 1959,
@@ -169,7 +169,7 @@ export const INITIAL_CLASSROOMS: Classroom[] = [
     hasMotion: 0, // Cảm biến PIR báo 0 chuyển động
     isVacant: true,
     vacantDurationMinutes: 22, // Đã hết giờ học 22 phút
-    voltageV: 222.0,
+    voltageV: 24.0,
     currentA: 9.25,
     totalPowerW: 1980,
     apparentPowerVA: 2053,
@@ -178,7 +178,7 @@ export const INITIAL_CLASSROOMS: Classroom[] = [
     powerFactor: 0.965,
     energyTodayKWh: 12.4,
     warningForgotten: true, // CẢNH BÁO: BỎ QUÊN THIẾT BỊ SAU GIỜ HỌC
-    autoShutdownRemainingSec: 54, // Đang đếm ngược 54 giây trước khi tự động ngắt relay 220V
+    autoShutdownRemainingSec: 54, // Đang đếm ngược 54 giây trước khi tự động ngắt relay 24V
     lastUpdated: '1 giây trước',
     devices: [
       {
@@ -314,7 +314,7 @@ export const INITIAL_CLASSROOMS: Classroom[] = [
     hasMotion: 38,
     isVacant: false,
     vacantDurationMinutes: 0,
-    voltageV: 220.8,
+    voltageV: 23.9,
     currentA: 14.85,
     totalPowerW: 3180, // 2 máy lạnh chạy cùng dàn máy tính thực hành
     apparentPowerVA: 3279,
@@ -424,7 +424,7 @@ export const INITIAL_CLASSROOMS: Classroom[] = [
     hasMotion: 0,
     isVacant: true,
     vacantDurationMinutes: 110,
-    voltageV: 221.8,
+    voltageV: 24.2,
     currentA: 0.03,
     totalPowerW: 6.5, // Nguồn chờ Standby vi xử lý ESP32 và cảm biến
     apparentPowerVA: 6.6,
@@ -504,7 +504,7 @@ export const INITIAL_CLASSROOMS: Classroom[] = [
     hasMotion: 0,
     isVacant: true,
     vacantDurationMinutes: 50,
-    voltageV: 222.4,
+    voltageV: 24.0,
     currentA: 0.05,
     totalPowerW: 11.2,
     apparentPowerVA: 11.5,
@@ -531,7 +531,7 @@ export const INITIAL_CLASSROOMS: Classroom[] = [
       {
         id: 'dev-h01-ac1',
         name: 'Cụm Điều Hòa Trung Tâm VRV Daikin 10 HP',
-        brandModel: 'Daikin VRV IV-S RXMQ10AYM (3 pha - Điều khiển tiếp điểm 220V qua Contactor 60A)',
+        brandModel: 'Daikin VRV IV-S RXMQ10AYM (3 pha - Điều khiển tiếp điểm 24V qua Contactor 60A)',
         type: 'ac',
         isOn: false,
         powerRatingW: 7800,
@@ -563,13 +563,13 @@ export const INITIAL_CLASSROOMS: Classroom[] = [
 
 export const CALIBRATION_BENCHMARK_DATA: CalibrationPoint[] = [
   {
-    parameter: 'Điện áp lưới (Voltage AC)',
+    parameter: 'Điện áp hệ thống (Voltage 24V)',
     unit: 'V',
     standardInstrument: 'Fluke 87V True RMS Multimeter',
-    standardValue: 221.50,
-    pzemValue: 221.20,
-    absoluteError: -0.30,
-    relativeErrorPercent: 0.14,
+    standardValue: 24.05,
+    pzemValue: 24.02,
+    absoluteError: -0.03,
+    relativeErrorPercent: 0.12,
     status: 'ĐẠT TIÊU CHUẨN CẤP 1.0',
   },
   {
@@ -638,7 +638,7 @@ export const INITIAL_AUTOMATION_RULES: AutomationRule[] = [
   {
     id: 'rule-auto-off',
     name: 'Tự động ngắt điện khi phòng trống sau giờ học (Auto-Shutdown)',
-    description: 'Sau khi kết thúc tiết học theo TKB và cảm biến PIR không phát hiện người quá 10 phút, hệ thống phát cảnh báo và tự ngắt tiếp điểm Relay 220V để chống lãng phí điện.',
+    description: 'Sau khi kết thúc tiết học theo TKB và cảm biến PIR không phát hiện người quá 10 phút, hệ thống phát cảnh báo và tự ngắt tiếp điểm Relay 24V để chống lãng phí điện.',
     enabled: true,
     type: 'auto_off_vacant',
     paramMinutes: 10,
@@ -687,17 +687,17 @@ export const STUDENT_GROUP_TASKS: StudentTask[] = [
   {
     studentId: 'SV-01',
     name: 'Sinh viên 1 - Trưởng nhóm Phần cứng',
-    role: 'Kỹ sư Thiết kế Mạch Động Lực 220V AC & An Toàn Điện',
+    role: 'Kỹ sư Thiết kế Mạch Điều Khiển 24V & An Toàn Điện',
     responsibilities: [
-      'Thiết kế sơ đồ nguyên lý mạch tủ điện phòng học 220V AC theo tiêu chuẩn TCVN',
-      'Đấu nối cụm Module Relay 8 kênh Songle 10A và Contactor Schneider 30A cho điều hòa',
+      'Thiết kế sơ đồ nguyên lý mạch tủ điện phòng học chuẩn 24V theo tiêu chuẩn kỹ thuật',
+      'Đấu nối cụm Module Relay 8 kênh Songle 10A và Contactor điều khiển',
       'Tích hợp Module cách ly quang Optocoupler EL817 chống nhiễu ngược về vi điều khiển ESP32',
-      'Đảm bảo an toàn điện: Cầu chì bảo vệ, aptomat chống giật RCBO 30mA, tiếp địa tủ điện',
+      'Đảm bảo an toàn điện: Cầu chì bảo vệ, bảo vệ quá tải, chống chạm chập, tiếp địa tủ điện',
     ],
     hardwareDeliverables: [
-      'Module Relay 8 kênh 250VAC/10A có Optocoupler',
-      'Contactor AC 220V 30A Schneider TeSys LC1D',
-      'Aptomat chống giật RCBO Panasonic 30mA & Hộp tủ điện sắt sơn tĩnh điện',
+      'Module Relay 8 kênh 24V có Optocoupler cách ly',
+      'Contactor Relay 24V Schneider TeSys',
+      'Bộ nguồn bảo vệ 24V & Hộp tủ điện sắt sơn tĩnh điện',
     ],
     progressPercent: 95,
   },
@@ -765,16 +765,16 @@ export const STUDENT_GROUP_TASKS: StudentTask[] = [
     hardwareDeliverables: [
       'Bảng số liệu kiểm chuẩn thực nghiệm sai số đo lường đạt cấp chính xác 1.0',
       'Báo cáo phân tích kinh tế & thời gian hoàn vốn giải pháp (ROI)',
-      'Tập thuyết minh đồ án 85 trang và Slide bảo vệ',
+      'Tập hồ sơ kỹ thuật hệ thống và báo cáo vận hành',
     ],
     progressPercent: 90,
   },
 ];
 
 export const ESP32_SAMPLE_CODE = `/**
- * ĐỒ ÁN TỐT NGHIỆP: HỆ THỐNG GIÁM SÁT VÀ QUẢN LÝ THIẾT BỊ PHÒNG HỌC TỪ XA
+ * FIRMWARE: HỆ THỐNG GIÁM SÁT VÀ QUẢN LÝ THIẾT BỊ PHÒNG HỌC TỪ XA
  * Firmware: ESP32-WROOM-32 kết nối PZEM-004T v3.0, Relay 220V, PIR, DHT22
- * Nhóm tác giả: Nhóm 4-5 Sinh viên Đại học (Ngành Kỹ thuật Điện tử - Viễn thông / IoT)
+ * Nhóm kỹ thuật: Kỹ sư IoT & Nhúng
  * Giao thức: MQTT / WebSocket / REST API
  */
 

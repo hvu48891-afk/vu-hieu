@@ -7,7 +7,6 @@ import {
 } from '../context/AuthContext';
 import { useClassroom } from '../context/ClassroomContext';
 import { UserRole, PermissionAction, User } from '../types';
-import { GoogleIcon } from './GoogleIcon';
 import {
   X,
   ShieldCheck,
@@ -30,7 +29,6 @@ import {
   RotateCcw,
   Search,
   ExternalLink,
-  ChevronRight,
   Info,
 } from 'lucide-react';
 
@@ -51,7 +49,7 @@ export const PermissionsModal: React.FC = () => {
 
   const { classrooms } = useClassroom();
 
-  const [activeTab, setActiveTab] = useState<'matrix' | 'users' | 'switcher' | 'rooms'>('matrix');
+  const [activeTab, setActiveTab] = useState<'matrix' | 'users'>('matrix');
   const [searchQuery, setSearchQuery] = useState('');
   const [roleFilter, setRoleFilter] = useState<string>('ALL');
   const [notice, setNotice] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
@@ -282,18 +280,6 @@ export const PermissionsModal: React.FC = () => {
             <Users className="h-4 w-4" />
             <span>2. Danh Sách Tài Khoản & Gán Quyền ({users.length})</span>
           </button>
-
-          <button
-            onClick={() => setActiveTab('switcher')}
-            className={`py-3 px-3 text-xs font-semibold border-b-2 transition-all flex items-center gap-2 whitespace-nowrap ${
-              activeTab === 'switcher'
-                ? 'border-purple-500 text-purple-300 font-bold'
-                : 'border-transparent text-slate-400 hover:text-white'
-            }`}
-          >
-            <RotateCcw className="h-4 w-4" />
-            <span>3. Chuyển Nhanh Vai Trò Kiểm Thử</span>
-          </button>
         </div>
 
         {/* Body Container */}
@@ -488,9 +474,9 @@ export const PermissionsModal: React.FC = () => {
                   <button
                     onClick={() => {
                       resetDefaultUsers();
-                      showNotification('Đã khôi phục 4 tài khoản mặc định của đề tài!');
+                      showNotification('Đã khôi phục 4 tài khoản mặc định của hệ thống!');
                     }}
-                    title="Khôi phục danh sách tài khoản đồ án ban đầu"
+                    title="Khôi phục danh sách tài khoản mẫu ban đầu"
                     className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 transition-colors text-xs"
                   >
                     <RotateCcw className="h-3.5 w-3.5" />
@@ -648,11 +634,6 @@ export const PermissionsModal: React.FC = () => {
                                 <div>
                                   <div className="flex items-center gap-2">
                                     <span className="font-bold text-white text-xs">{user.name}</span>
-                                    {user.authProvider === 'google' && (
-                                      <span className="inline-flex items-center gap-0.5 text-[9px] font-mono px-1.5 py-0.2 rounded bg-sky-500/20 text-sky-300 border border-sky-500/40">
-                                        <GoogleIcon className="w-2.5 h-2.5" /> Google
-                                      </span>
-                                    )}
                                     {isCurrent && (
                                       <span className="text-[10px] font-mono px-1.5 py-0.2 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">
                                         Đang dùng
@@ -759,117 +740,6 @@ export const PermissionsModal: React.FC = () => {
                     </tbody>
                   </table>
                 </div>
-              </div>
-            </div>
-          )}
-
-          {/* TAB 3: CHUYỂN NHANH VAI TRÒ KIỂM THỬ (SWITCHER) */}
-          {activeTab === 'switcher' && (
-            <div className="space-y-4">
-              <p className="text-xs text-slate-300">
-                Chức năng kiểm thử đồ án: Chuyển đổi nhanh giữa 4 vai trò để kiểm tra tính hiệu quả của cơ chế
-                phân quyền bảo vệ tiếp điểm Relay 220V trên giao diện người dùng:
-              </p>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {(['ADMIN', 'LECTURER', 'TECHNICIAN', 'STUDENT'] as UserRole[]).map((role) => {
-                  const meta = ROLE_METAS[role];
-                  const userForRole = users.find((u) => u.role === role) || users[0];
-                  const isCurrent = currentUser?.role === role;
-
-                  return (
-                    <div
-                      key={role}
-                      className={`p-5 rounded-2xl border transition-all flex flex-col justify-between ${
-                        isCurrent
-                          ? 'bg-slate-900 border-purple-500/80 ring-2 ring-purple-500/30 shadow-lg'
-                          : 'bg-slate-950/70 border-slate-800 hover:border-slate-700'
-                      }`}
-                    >
-                      <div>
-                        <div className="flex items-start justify-between gap-3">
-                          <div className="flex items-center gap-3">
-                            <div className="p-3 rounded-xl bg-slate-900 border border-slate-700">
-                              {getRoleIcon(role)}
-                            </div>
-                            <div>
-                              <div className="flex items-center gap-2">
-                                <h4 className="font-bold text-sm text-white">{meta.title}</h4>
-                                <span
-                                  className={`text-[10px] font-mono px-2 py-0.5 rounded border ${meta.badgeBg} ${meta.badgeText} ${meta.badgeBorder}`}
-                                >
-                                  {role}
-                                </span>
-                              </div>
-                              <span className="text-xs text-slate-400 block mt-0.5">
-                                Đại diện demo: <strong className="text-slate-200">{userForRole?.name}</strong> ({userForRole?.email})
-                              </span>
-                            </div>
-                          </div>
-                        </div>
-
-                        <p className="text-xs text-slate-300 mt-3 leading-relaxed">
-                          {meta.description}
-                        </p>
-
-                        {/* Allowed vs Blocked Badges */}
-                        <div className="mt-4 pt-3 border-t border-slate-800/80 space-y-2 text-xs">
-                          <div className="flex items-start gap-2">
-                            <CheckCircle2 className="h-4 w-4 text-emerald-400 shrink-0 mt-0.5" />
-                            <span className="text-slate-300 text-[11px]">
-                              {role === 'ADMIN' && 'Toàn quyền: Bật/tắt tất cả phòng, ngắt điện toàn trường khẩn cấp, thêm/xóa phòng vào Supabase.'}
-                              {role === 'LECTURER' && 'Bật/tắt relay đèn, quạt, chỉnh máy lạnh tại các phòng được phân công trong lịch giảng dạy.'}
-                              {role === 'TECHNICIAN' && 'Đóng ngắt relay mọi phòng để đo kiểm PZEM-004T, thêm phòng test phần cứng, chạy kịch bản mô phỏng.'}
-                              {role === 'STUDENT' && 'Xem lịch học vụ, giám sát nhiệt độ và biểu đồ tiêu thụ điện năng.'}
-                            </span>
-                          </div>
-
-                          <div className="flex items-start gap-2">
-                            <XCircle className="h-4 w-4 text-rose-400 shrink-0 mt-0.5" />
-                            <span className="text-slate-400 text-[11px]">
-                              {role === 'ADMIN' && 'Không có hạn chế.'}
-                              {role === 'LECTURER' && 'Bị chặn ngắt điện toàn trường, bị chặn thêm phòng học mới, không được sửa luật tự động hóa.'}
-                              {role === 'TECHNICIAN' && 'Không được ngắt điện toàn trường khẩn cấp hoặc quản lý tài khoản người dùng.'}
-                              {role === 'STUDENT' && 'Toàn bộ công tắc relay 220V bị khóa an toàn (không được bật/tắt thiết bị).'}
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="mt-5 pt-3 border-t border-slate-800 flex items-center justify-between">
-                        <span className="text-[11px] text-slate-400">
-                          {isCurrent ? '⚡ Đang áp dụng phân quyền này' : 'Nhấn để áp dụng ngay'}
-                        </span>
-
-                        <button
-                          onClick={() => {
-                            if (userForRole) {
-                              switchUser(userForRole.id);
-                              showNotification(`Đã chuyển phiên làm việc sang vai trò ${meta.title}!`);
-                            }
-                          }}
-                          className={`px-4 py-2 text-xs font-bold rounded-lg transition-all flex items-center gap-1.5 shadow-sm active:scale-95 ${
-                            isCurrent
-                              ? 'bg-purple-600 text-white cursor-default'
-                              : 'bg-slate-800 hover:bg-slate-700 text-white'
-                          }`}
-                        >
-                          {isCurrent ? (
-                            <>
-                              <CheckCircle2 className="h-3.5 w-3.5 text-white" />
-                              <span>Đang kích hoạt</span>
-                            </>
-                          ) : (
-                            <>
-                              <span>Kích hoạt vai trò này</span>
-                              <ChevronRight className="h-3.5 w-3.5" />
-                            </>
-                          )}
-                        </button>
-                      </div>
-                    </div>
-                  );
-                })}
               </div>
             </div>
           )}

@@ -21,6 +21,7 @@ import {
   SlidersHorizontal,
   ShieldAlert,
   LogIn,
+  Lock,
   X,
   Database,
   Plus,
@@ -75,6 +76,15 @@ export const DashboardView: React.FC = () => {
   const [copiedSql, setCopiedSql] = useState<boolean>(false);
 
   const handleDeviceToggle = (classroomId: string, deviceId: string) => {
+    if (!currentUser) {
+      setAuthNotice('Hệ thống đã khóa điều khiển: Bạn đã đăng xuất hoặc chưa đăng nhập! Vui lòng đăng nhập để thao tác thiết bị.');
+      openLoginModal();
+      return;
+    }
+    if (currentUser.role === 'STUDENT') {
+      setAuthNotice('Tài khoản Sinh viên ở chế độ Chỉ xem. Quyền đóng/ngắt thiết bị Relay 220V bị khóa!');
+      return;
+    }
     const perm = canPerform('CONTROL_DEVICE', classroomId);
     if (!perm.allowed) {
       setAuthNotice(perm.reason || 'Bạn không có quyền điều khiển thiết bị tại phòng này!');
@@ -84,12 +94,102 @@ export const DashboardView: React.FC = () => {
   };
 
   const handleRoomTurnAllOff = (classroomId: string) => {
+    if (!currentUser) {
+      setAuthNotice('Hệ thống đã khóa điều khiển: Bạn đã đăng xuất hoặc chưa đăng nhập! Vui lòng đăng nhập để thao tác ngắt điện.');
+      openLoginModal();
+      return;
+    }
+    if (currentUser.role === 'STUDENT') {
+      setAuthNotice('Tài khoản Sinh viên ở chế độ Chỉ xem. Quyền đóng/ngắt thiết bị Relay 220V bị khóa!');
+      return;
+    }
     const perm = canPerform('CONTROL_DEVICE', classroomId);
     if (!perm.allowed) {
       setAuthNotice(perm.reason || 'Bạn không có quyền ngắt điện tại phòng này!');
       return;
     }
     turnAllOff(classroomId);
+  };
+
+  const handleRoomTurnAllOn = (classroomId: string) => {
+    if (!currentUser) {
+      setAuthNotice('Hệ thống đã khóa điều khiển: Bạn đã đăng xuất hoặc chưa đăng nhập! Vui lòng đăng nhập để bật thiết bị.');
+      openLoginModal();
+      return;
+    }
+    if (currentUser.role === 'STUDENT') {
+      setAuthNotice('Tài khoản Sinh viên ở chế độ Chỉ xem. Quyền đóng/ngắt thiết bị Relay 220V bị khóa!');
+      return;
+    }
+    const perm = canPerform('CONTROL_DEVICE', classroomId);
+    if (!perm.allowed) {
+      setAuthNotice(perm.reason || 'Bạn không có quyền bật thiết bị tại phòng này!');
+      return;
+    }
+    turnAllOn(classroomId);
+  };
+
+  const handleRoomToggleAll = (cr: Classroom) => {
+    const anyOn = cr.devices.some((d) => d.isOn);
+    if (anyOn) {
+      handleRoomTurnAllOff(cr.id);
+    } else {
+      handleRoomTurnAllOn(cr.id);
+    }
+  };
+
+  const handleHardCutoffClick = (cr: Classroom) => {
+    if (!currentUser) {
+      setAuthNotice('Hệ thống đã khóa điều khiển: Bạn đã đăng xuất hoặc chưa đăng nhập! Vui lòng đăng nhập để thao tác Aptomat.');
+      openLoginModal();
+      return;
+    }
+    if (currentUser.role === 'STUDENT') {
+      setAuthNotice('Tài khoản Sinh viên ở chế độ Chỉ xem. Quyền thao tác Aptomat tổng bị khóa!');
+      return;
+    }
+    const perm = canPerform('CONTROL_DEVICE', cr.id);
+    if (!perm.allowed) {
+      setAuthNotice(perm.reason || 'Bạn không có quyền thao tác Aptomat phòng này!');
+      return;
+    }
+    toggleHardCutoff(cr.id);
+  };
+
+  const handleSimulate = (scenario: 'leave_empty_forget' | 'students_enter' | 'auto_shutdown_now') => {
+    if (!currentUser) {
+      setAuthNotice('Hệ thống đã khóa: Bạn đã đăng xuất hoặc chưa đăng nhập! Vui lòng đăng nhập để chạy thử kịch bản.');
+      openLoginModal();
+      return;
+    }
+    if (currentUser.role === 'STUDENT') {
+      setAuthNotice('Tài khoản Sinh viên ở chế độ Chỉ xem. Không có quyền chạy thử mô phỏng kiểm thử phần cứng!');
+      return;
+    }
+    const perm = canPerform('SIMULATE_SCENARIO');
+    if (!perm.allowed) {
+      setAuthNotice(perm.reason || 'Bạn không có quyền kích hoạt kịch bản mô phỏng!');
+      return;
+    }
+    simulateScenario(scenario);
+  };
+
+  const handleAddRoomClick = () => {
+    if (!currentUser) {
+      setAuthNotice('Hệ thống đã khóa: Bạn đã đăng xuất hoặc chưa đăng nhập! Vui lòng đăng nhập để thêm phòng học.');
+      openLoginModal();
+      return;
+    }
+    if (currentUser.role === 'STUDENT') {
+      setAuthNotice('Tài khoản Sinh viên ở chế độ Chỉ xem. Không có quyền thêm phòng học mới vào hệ thống!');
+      return;
+    }
+    const perm = canPerform('ADD_ROOM');
+    if (!perm.allowed) {
+      setAuthNotice(perm.reason || 'Chỉ Quản trị viên và Kỹ thuật viên mới có quyền thêm phòng học mới!');
+      return;
+    }
+    setShowAddModal(true);
   };
 
   const handleManualRefresh = async () => {
@@ -111,6 +211,20 @@ export const DashboardView: React.FC = () => {
   };
 
   const handleSeedDatabase = async () => {
+    if (!currentUser) {
+      setAuthNotice('Vui lòng đăng nhập để nạp dữ liệu mẫu!');
+      openLoginModal();
+      return;
+    }
+    if (currentUser.role === 'STUDENT') {
+      setAuthNotice('Tài khoản Sinh viên không có quyền nạp dữ liệu mẫu vào cơ sở dữ liệu!');
+      return;
+    }
+    const perm = canPerform('ADD_ROOM');
+    if (!perm.allowed) {
+      setAuthNotice(perm.reason || 'Chỉ Quản trị viên và Kỹ thuật viên mới có quyền nạp dữ liệu mẫu!');
+      return;
+    }
     setIsSubmitting(true);
     setActionMessage(null);
     const res = await seedSupabaseClassrooms();
@@ -137,6 +251,15 @@ export const DashboardView: React.FC = () => {
   };
 
   const handleDeleteRoomClick = (cr: Classroom) => {
+    if (!currentUser) {
+      setAuthNotice('Hệ thống đã khóa: Bạn đã đăng xuất hoặc chưa đăng nhập! Vui lòng đăng nhập để xóa phòng học.');
+      openLoginModal();
+      return;
+    }
+    if (currentUser.role === 'STUDENT') {
+      setAuthNotice('Tài khoản Sinh viên ở chế độ Chỉ xem. Không có quyền xóa phòng học khỏi hệ thống!');
+      return;
+    }
     const perm = canPerform('DELETE_ROOM', cr.id);
     if (!perm.allowed) {
       setAuthNotice(perm.reason || 'Chỉ Quản trị viên mới có quyền xóa phòng học khỏi hệ thống!');
@@ -280,8 +403,8 @@ INSERT INTO public.devices (room_id, device_name, device_type, is_on) VALUES
           </button>
 
           <button
-            onClick={() => setShowAddModal(true)}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white transition-colors shadow-sm"
+            onClick={handleAddRoomClick}
+            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white transition-colors shadow-sm cursor-pointer"
           >
             <Plus className="h-3.5 w-3.5" />
             <span>Thêm phòng mới</span>
@@ -297,6 +420,63 @@ INSERT INTO public.devices (room_id, device_name, device_type, is_on) VALUES
           </button>
         </div>
       </div>
+
+      {/* Persistent Session Notice for Logged Out or Student Account */}
+      {!currentUser && (
+        <div className="p-4 rounded-xl border border-amber-500/50 bg-amber-950/40 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-amber-200 text-xs shadow-lg shadow-amber-950/30">
+          <div className="flex items-start sm:items-center gap-3">
+            <div className="p-2 rounded-lg bg-amber-500/20 text-amber-400 shrink-0 mt-0.5 sm:mt-0">
+              <Lock className="h-5 w-5" />
+            </div>
+            <div>
+              <div className="font-bold text-sm text-white flex items-center gap-2">
+                <span>Chế độ Xem Khách (Đã Đăng Xuất)</span>
+                <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/40 uppercase font-semibold">
+                  Khóa điều khiển
+                </span>
+              </div>
+              <p className="text-amber-200/90 mt-1 leading-relaxed">
+                Hệ thống đang khóa toàn bộ thao tác điều khiển thiết bị Relay 220V, Aptomat tổng và thêm/xóa phòng học. Bạn chỉ có quyền xem thông số đo lường PZEM-004T. Vui lòng đăng nhập tài khoản có thẩm quyền để thao tác.
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={openLoginModal}
+            className="px-3.5 py-2 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold rounded-lg transition-colors shrink-0 flex items-center gap-1.5 shadow-sm text-xs cursor-pointer"
+          >
+            <LogIn className="h-4 w-4" />
+            <span>Đăng nhập ngay</span>
+          </button>
+        </div>
+      )}
+
+      {currentUser?.role === 'STUDENT' && (
+        <div className="p-4 rounded-xl border border-blue-500/50 bg-blue-950/40 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-blue-200 text-xs shadow-lg shadow-blue-950/30">
+          <div className="flex items-start sm:items-center gap-3">
+            <div className="p-2 rounded-lg bg-blue-500/20 text-blue-400 shrink-0 mt-0.5 sm:mt-0">
+              <ShieldAlert className="h-5 w-5" />
+            </div>
+            <div>
+              <div className="font-bold text-sm text-white flex items-center gap-2">
+                <span>Tài Khoản Sinh Viên: {currentUser.name}</span>
+                <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-blue-500/20 text-blue-300 border border-blue-500/40 uppercase font-semibold">
+                  Chỉ Xem (Read-Only)
+                </span>
+              </div>
+              <p className="text-blue-200/90 mt-1 leading-relaxed">
+                Theo quy định an toàn điện trường học, tài khoản Sinh viên chỉ có quyền xem giám sát năng lượng và thời khóa biểu. Mọi thao tác đóng/ngắt thiết bị Relay 220V, Aptomat tổng và cấu hình hệ thống bị KHÓA.
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={openLoginModal}
+            className="px-3.5 py-2 bg-slate-800 hover:bg-slate-700 text-blue-300 border border-blue-700/60 rounded-lg transition-colors shrink-0 flex items-center gap-1.5 text-xs font-semibold cursor-pointer"
+          >
+            <LogIn className="h-4 w-4" />
+            <span>Đổi tài khoản khác</span>
+          </button>
+        </div>
+      )}
 
       {/* RBAC Permission Warning Banner */}
       {authNotice && (
@@ -474,8 +654,8 @@ INSERT INTO public.devices (room_id, device_name, device_type, is_on) VALUES
                 </p>
               </div>
               <button
-                onClick={() => setShowAddModal(true)}
-                className="w-full py-2 px-3 text-xs font-semibold rounded-lg bg-cyan-600 hover:bg-cyan-500 text-white transition-colors flex items-center justify-center gap-1.5 shadow-sm"
+                onClick={handleAddRoomClick}
+                className="w-full py-2 px-3 text-xs font-semibold rounded-lg bg-cyan-600 hover:bg-cyan-500 text-white transition-colors flex items-center justify-center gap-1.5 shadow-sm cursor-pointer"
               >
                 <Plus className="h-3.5 w-3.5" />
                 <span>Thêm phòng học mới</span>
@@ -568,16 +748,16 @@ INSERT INTO public.devices (room_id, device_name, device_type, is_on) VALUES
               <Sparkles className="h-3.5 w-3.5 text-amber-400" /> Kịch bản kiểm thử:
             </span>
             <button
-              onClick={() => simulateScenario('leave_empty_forget')}
+              onClick={() => handleSimulate('leave_empty_forget')}
               title="Mô phỏng: Hết giờ học, sinh viên ra về nhưng quên tắt điều hòa và đèn!"
-              className="px-2.5 py-1.5 text-xs font-medium text-amber-300 bg-amber-950/40 hover:bg-amber-900/60 border border-amber-800/60 rounded-lg transition-colors"
+              className="px-2.5 py-1.5 text-xs font-medium text-amber-300 bg-amber-950/40 hover:bg-amber-900/60 border border-amber-800/60 rounded-lg transition-colors cursor-pointer"
             >
               Mô phỏng quên tắt (Tan học)
             </button>
             <button
-              onClick={() => simulateScenario('students_enter')}
+              onClick={() => handleSimulate('students_enter')}
               title="Mô phỏng: Cảm biến PIR phát hiện sinh viên vào phòng"
-              className="px-2.5 py-1.5 text-xs font-medium text-blue-300 bg-blue-950/40 hover:bg-blue-900/60 border border-blue-800/60 rounded-lg transition-colors"
+              className="px-2.5 py-1.5 text-xs font-medium text-blue-300 bg-blue-950/40 hover:bg-blue-900/60 border border-blue-800/60 rounded-lg transition-colors cursor-pointer"
             >
               Mô phỏng vào lớp
             </button>
@@ -599,7 +779,7 @@ INSERT INTO public.devices (room_id, device_name, device_type, is_on) VALUES
           </div>
 
           <button
-            onClick={() => setShowAddModal(true)}
+            onClick={handleAddRoomClick}
             className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white transition-colors shadow-sm self-start sm:self-auto cursor-pointer"
           >
             <Plus className="h-3.5 w-3.5" />
@@ -661,9 +841,17 @@ INSERT INTO public.devices (room_id, device_name, device_type, is_on) VALUES
 
                     {/* Master Power Toggle for this room */}
                     <button
-                      onClick={() => (anyOn ? turnAllOff(cr.id) : turnAllOn(cr.id))}
-                      title={anyOn ? 'Ngắt toàn bộ relay phòng' : 'Bật thiết bị phòng'}
-                      className={`p-2 rounded-lg transition-colors ${
+                      onClick={() => handleRoomToggleAll(cr)}
+                      title={
+                        !currentUser
+                          ? 'Đã khóa điều khiển (Chưa đăng nhập)'
+                          : currentUser.role === 'STUDENT'
+                          ? 'Đã khóa điều khiển (Tài khoản Sinh viên)'
+                          : anyOn
+                          ? 'Ngắt toàn bộ relay phòng'
+                          : 'Bật thiết bị phòng'
+                      }
+                      className={`p-2 rounded-lg transition-colors cursor-pointer ${
                         anyOn
                           ? 'bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30 border border-emerald-500/30'
                           : 'bg-slate-800 text-slate-400 hover:bg-slate-700'
@@ -795,13 +983,17 @@ INSERT INTO public.devices (room_id, device_name, device_type, is_on) VALUES
                       </button>
                     ) : (
                       <button
-                        onClick={() => toggleHardCutoff(cr.id)}
+                        onClick={() => handleHardCutoffClick(cr)}
                         title={
-                          cr.isHardCutoff
+                          !currentUser
+                            ? 'Đã khóa điều khiển Aptomat (Chưa đăng nhập)'
+                            : currentUser.role === 'STUDENT'
+                            ? 'Đã khóa điều khiển Aptomat (Tài khoản Sinh viên)'
+                            : cr.isHardCutoff
                             ? 'Bật lại nguồn chờ nuôi bo mạch IoT ESP32 (6.5W)'
                             : 'Ngắt hoàn toàn Aptomat tổng về 0W (Total Cutoff)'
                         }
-                        className={`px-2 py-1 text-xs rounded font-medium border transition-colors ${
+                        className={`px-2 py-1 text-xs rounded font-medium border transition-colors cursor-pointer ${
                           cr.isHardCutoff
                             ? 'bg-slate-800 text-slate-300 border-slate-700 hover:text-white'
                             : 'bg-cyan-950/50 text-cyan-300 border-cyan-800/60 hover:bg-cyan-900/60'

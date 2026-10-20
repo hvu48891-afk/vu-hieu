@@ -408,7 +408,7 @@ export const AnalyticsView: React.FC = () => {
             </div>
 
             <div className="mt-4 p-3 rounded-lg bg-slate-950 border border-slate-800 text-xs text-slate-300 space-y-1">
-              <strong className="text-white block">Kết luận kiểm chuẩn đồ án:</strong>
+              <strong className="text-white block">Kết luận kiểm chuẩn hệ thống:</strong>
               <p>
                 - Tất cả các đại lượng đo (Điện áp, Dòng điện, Công suất tác dụng P, Tần số lưới 50Hz, Hệ số công suất cos φ) đo bởi module PZEM-004T v3.0 đều có <strong>sai số dưới 0.5%</strong> so với các thiết bị đo kiểm chuyên dụng của Fluke và Chauvin Arnoux.
                 <br />

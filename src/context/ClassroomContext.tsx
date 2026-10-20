@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
-import { Classroom, AutomationRule, HardwareLog, DeviceType } from '../types';
+import { Classroom, AutomationRule, HardwareLog, DeviceType, PermissionAction } from '../types';
 import { INITIAL_CLASSROOMS, INITIAL_AUTOMATION_RULES } from '../data/mockData';
 import { playRelayClick, playWarningBeep, setSoundEnabled, getSoundEnabled } from '../utils/audio';
 import { calculateRealisticAcPower } from '../utils/calculations';
@@ -7,6 +7,8 @@ import { dbService } from '../services/dbService';
 import { validateFirestoreConnection } from '../lib/firebase';
 import { SUPABASE_URL, isSupabaseConfigured, checkSupabaseConnection } from '../lib/supabase';
 import { supabaseService } from '../services/supabaseService';
+import { useAuth } from './AuthContext';
+import { Lock, ShieldAlert, X, LogIn } from 'lucide-react';
 
 interface ClassroomContextType {
   classrooms: Classroom[];
@@ -56,8 +58,22 @@ interface ClassroomContextType {
     }>
   ) => Promise<{ success: boolean; rlsBlocked?: boolean; error?: string; roomId?: number }>;
   deleteRoom: (classroomId: string) => Promise<{ success: boolean; rlsBlocked?: boolean; error?: string }>;
+  addDeviceToRoom: (
+    classroomId: string,
+    deviceData: {
+      name: string;
+      type: DeviceType;
+      powerRatingW: number;
+      isOn?: boolean;
+      targetTemp?: number;
+    }
+  ) => Promise<{ success: boolean; error?: string }>;
+  deleteDeviceFromRoom: (classroomId: string, deviceId: string) => Promise<{ success: boolean; error?: string }>;
   loadDemoClassrooms: () => void;
   toggleHardCutoff: (classroomId: string) => void;
+  authNotice: string | null;
+  clearAuthNotice: () => void;
+  isReadOnlySession: boolean;
 }
 
 const ClassroomContext = createContext<ClassroomContextType | null>(null);
@@ -75,7 +91,7 @@ const DEFAULT_EMPTY_ROOM: Classroom = {
   hasMotion: 0,
   isVacant: true,
   vacantDurationMinutes: 0,
-  voltageV: 220,
+  voltageV: 24.0,
   currentA: 0,
   totalPowerW: 0,
   apparentPowerVA: 0,
@@ -91,6 +107,40 @@ const DEFAULT_EMPTY_ROOM: Classroom = {
 };
 
 export const ClassroomProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const { currentUser, canPerform, openLoginModal } = useAuth();
+  const [authNotice, setAuthNotice] = useState<string | null>(null);
+  const isReadOnlySession = !currentUser || currentUser.role === 'STUDENT';
+
+  const clearAuthNotice = useCallback(() => {
+    setAuthNotice(null);
+  }, []);
+
+  const requirePerm = useCallback(
+    (action: PermissionAction, roomId?: string): boolean => {
+      if (!currentUser) {
+        const reason = 'Hệ thống đã khóa điều khiển: Bạn đã đăng xuất hoặc chưa đăng nhập! Vui lòng đăng nhập để thao tác hệ thống.';
+        setAuthNotice(reason);
+        openLoginModal();
+        setTimeout(() => setAuthNotice(null), 5500);
+        return false;
+      }
+      if (currentUser.role === 'STUDENT') {
+        const reason = 'Tài khoản Sinh viên ở chế độ Chỉ xem. Mọi thao tác đóng/ngắt thiết bị Relay 24V, Aptomat và cấu hình hệ thống bị khóa!';
+        setAuthNotice(reason);
+        setTimeout(() => setAuthNotice(null), 5500);
+        return false;
+      }
+      const perm = canPerform(action, roomId);
+      if (!perm.allowed) {
+        setAuthNotice(perm.reason || 'Bạn không có quyền thực hiện thao tác này!');
+        setTimeout(() => setAuthNotice(null), 5000);
+        return false;
+      }
+      return true;
+    },
+    [canPerform, currentUser, openLoginModal]
+  );
+
   // Initialize with empty array so that count starts accurately reflecting database
   const [classrooms, setClassrooms] = useState<Classroom[]>([]);
   const [selectedClassroomId, setSelectedClassroomId] = useState<string>('');
@@ -265,12 +315,15 @@ export const ClassroomProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   }, [loadFromSupabase]);
 
   const seedSupabaseClassrooms = useCallback(async () => {
+    if (!requirePerm('ADD_ROOM')) {
+      return { success: false, count: 0, error: 'Không có quyền nạp phòng học!' };
+    }
     const res = await supabaseService.seedSampleRooms();
     if (res.success) {
       await loadFromSupabase();
     }
     return res;
-  }, [loadFromSupabase]);
+  }, [loadFromSupabase, requirePerm]);
 
   const addSupabaseRoom = useCallback(
     async (
@@ -284,6 +337,9 @@ export const ClassroomProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         targetTemp?: number;
       }>
     ) => {
+      if (!requirePerm('ADD_ROOM')) {
+        return { success: false, error: 'Bạn không có quyền thêm phòng học mới!' };
+      }
       setDbSyncStatus('connecting');
       const res = await supabaseService.addRoom(name, building, customDevices);
       if (res.success) {
@@ -300,11 +356,14 @@ export const ClassroomProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       }
       return res;
     },
-    [loadFromSupabase, addHardwareLog]
+    [loadFromSupabase, addHardwareLog, requirePerm]
   );
 
   const deleteRoom = useCallback(
     async (classroomId: string): Promise<{ success: boolean; rlsBlocked?: boolean; error?: string }> => {
+      if (!requirePerm('DELETE_ROOM', classroomId)) {
+        return { success: false, error: 'Bạn không có quyền xóa phòng học khỏi hệ thống!' };
+      }
       setDbSyncStatus('connecting');
 
       const targetRoom = classrooms.find((c) => c.id === classroomId);
@@ -356,10 +415,75 @@ export const ClassroomProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       setDbSyncStatus('synced');
       return { success: true };
     },
-    [classrooms, addHardwareLog]
+    [classrooms, addHardwareLog, requirePerm]
+  );
+
+  const addDeviceToRoom = useCallback(
+    async (
+      classroomId: string,
+      deviceData: {
+        name: string;
+        type: DeviceType;
+        powerRatingW: number;
+        isOn?: boolean;
+        targetTemp?: number;
+      }
+    ): Promise<{ success: boolean; error?: string }> => {
+      if (!requirePerm('CONTROL_DEVICE', classroomId)) {
+        return { success: false, error: 'Bạn không có quyền thêm thiết bị.' };
+      }
+      const numericRoomId = parseInt(classroomId.replace(/[^0-9]/g, ''), 10);
+      if (isNaN(numericRoomId)) {
+        return { success: false, error: 'Mã phòng không hợp lệ.' };
+      }
+      const res = await supabaseService.createDevice({
+        room_id: numericRoomId,
+        device_name: deviceData.name,
+        device_type: deviceData.type,
+        power_rating_watts: deviceData.powerRatingW,
+        is_on: deviceData.isOn ?? false,
+        target_temperature: deviceData.targetTemp ?? (deviceData.type === 'ac' ? 24 : null),
+      });
+      if (res.success) {
+        await loadFromSupabase();
+        supabaseService.logActivity({
+          device_id: res.data?.id,
+          control_source: 'WEB_ADMIN',
+          action_performed: `Thêm thiết bị "${deviceData.name}" (${deviceData.powerRatingW}W) vào phòng ID: ${numericRoomId}`,
+        });
+        return { success: true };
+      }
+      return { success: false, error: res.error };
+    },
+    [requirePerm, loadFromSupabase]
+  );
+
+  const deleteDeviceFromRoom = useCallback(
+    async (classroomId: string, deviceId: string): Promise<{ success: boolean; error?: string }> => {
+      if (!requirePerm('CONTROL_DEVICE', classroomId)) {
+        return { success: false, error: 'Bạn không có quyền xóa thiết bị.' };
+      }
+      const numericDevId = parseInt(deviceId.replace(/[^0-9]/g, ''), 10);
+      if (isNaN(numericDevId)) {
+        return { success: false, error: 'Mã thiết bị không hợp lệ.' };
+      }
+      const res = await supabaseService.deleteDevice(numericDevId);
+      if (res.success) {
+        await loadFromSupabase();
+        supabaseService.logActivity({
+          device_id: numericDevId,
+          control_source: 'WEB_ADMIN',
+          action_performed: `Xóa thiết bị ID: ${numericDevId} khỏi phòng [${classroomId}]`,
+        });
+        return { success: true };
+      }
+      return { success: false, error: res.error };
+    },
+    [requirePerm, loadFromSupabase]
   );
 
   const loadDemoClassrooms = useCallback(() => {
+    if (!requirePerm('SIMULATE_SCENARIO')) return;
     setClassrooms(INITIAL_CLASSROOMS);
     setSelectedClassroomId('cr-a101');
     setIsSupabasePrimary(false);
@@ -370,7 +494,7 @@ export const ClassroomProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       'IN',
       'TELEMETRY'
     );
-  }, [addHardwareLog]);
+  }, [addHardwareLog, requirePerm]);
 
   const toggleSound = useCallback(() => {
     setSoundActive((prev) => {
@@ -433,6 +557,7 @@ export const ClassroomProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   };
 
   const toggleDevice = useCallback((classroomId: string, deviceId: string) => {
+    if (!requirePerm('CONTROL_DEVICE', classroomId)) return;
     setClassrooms((prev) =>
       prev.map((cr) => {
         if (cr.id !== classroomId) return cr;
@@ -454,7 +579,7 @@ export const ClassroomProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         playRelayClick(nextDeviceState ? 'on' : 'off');
         addHardwareLog(
           `smartclass/${cr.code}/cmd`,
-          `{"cmd":"SET_RELAY","device":"${targetDeviceName}","state":${nextDeviceState ? '"CLOSED_220V_ON"' : '"OPEN_220V_OFF"'}}`,
+          `{"cmd":"SET_RELAY","device":"${targetDeviceName}","state":${nextDeviceState ? '"CLOSED_24V_ON"' : '"OPEN_24V_OFF"'}}`,
           'OUT',
           'COMMAND'
         );
@@ -471,9 +596,10 @@ export const ClassroomProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         return updatedClassroom;
       })
     );
-  }, [addHardwareLog]);
+  }, [addHardwareLog, requirePerm]);
 
   const setAcTemperature = useCallback((classroomId: string, deviceId: string, temp: number) => {
+    if (!requirePerm('CONTROL_DEVICE', classroomId)) return;
     const ecoRule = automationRules.find((r) => r.type === 'temp_limit' && r.enabled);
     const minTemp = ecoRule?.paramTemp || 16;
     const boundedTemp = Math.max(minTemp, Math.min(30, temp));
@@ -508,9 +634,10 @@ export const ClassroomProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         return updatedRoom;
       })
     );
-  }, [automationRules, addHardwareLog]);
+  }, [automationRules, addHardwareLog, requirePerm]);
 
   const setAcMode = useCallback((classroomId: string, deviceId: string, mode: 'cool' | 'eco' | 'fan') => {
+    if (!requirePerm('CONTROL_DEVICE', classroomId)) return;
     setClassrooms((prev) =>
       prev.map((cr) => {
         if (cr.id !== classroomId) return cr;
@@ -529,9 +656,10 @@ export const ClassroomProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         return updatedRoom;
       })
     );
-  }, []);
+  }, [requirePerm]);
 
   const setFanSpeed = useCallback((classroomId: string, deviceId: string, speed: 1 | 2 | 3) => {
+    if (!requirePerm('CONTROL_DEVICE', classroomId)) return;
     setClassrooms((prev) =>
       prev.map((cr) => {
         if (cr.id !== classroomId) return cr;
@@ -547,9 +675,10 @@ export const ClassroomProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         return updatedRoom;
       })
     );
-  }, []);
+  }, [requirePerm]);
 
   const turnAllOff = useCallback((classroomId: string) => {
+    if (!requirePerm('CONTROL_DEVICE', classroomId)) return;
     playRelayClick('off');
     setClassrooms((prev) =>
       prev.map((cr) => {
@@ -581,9 +710,10 @@ export const ClassroomProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         return updatedRoom;
       })
     );
-  }, [addHardwareLog]);
+  }, [addHardwareLog, requirePerm]);
 
   const turnAllOn = useCallback((classroomId: string) => {
+    if (!requirePerm('CONTROL_DEVICE', classroomId)) return;
     playRelayClick('on');
     setClassrooms((prev) =>
       prev.map((cr) => {
@@ -616,9 +746,10 @@ export const ClassroomProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         return updatedRoom;
       })
     );
-  }, [addHardwareLog]);
+  }, [addHardwareLog, requirePerm]);
 
   const globalAllOff = useCallback(() => {
+    if (!requirePerm('GLOBAL_SHUTDOWN')) return;
     playRelayClick('off');
     setClassrooms((prev) => {
       const updatedRooms = prev.map((cr) => {
@@ -653,9 +784,10 @@ export const ClassroomProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       'OUT',
       'COMMAND'
     );
-  }, [addHardwareLog]);
+  }, [addHardwareLog, requirePerm]);
 
   const cancelAutoShutdown = useCallback((classroomId: string) => {
+    if (!requirePerm('CONTROL_DEVICE', classroomId)) return;
     setClassrooms((prev) =>
       prev.map((cr) => {
         if (cr.id !== classroomId) return cr;
@@ -673,9 +805,10 @@ export const ClassroomProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       'OUT',
       'COMMAND'
     );
-  }, [addHardwareLog]);
+  }, [addHardwareLog, requirePerm]);
 
   const toggleHardCutoff = useCallback((classroomId: string) => {
+    if (!requirePerm('CONTROL_DEVICE', classroomId)) return;
     setClassrooms((prev) =>
       prev.map((cr) => {
         if (cr.id !== classroomId) return cr;
@@ -711,10 +844,11 @@ export const ClassroomProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         return updatedRoom;
       })
     );
-  }, [addHardwareLog]);
+  }, [addHardwareLog, requirePerm]);
 
   const simulateScenario = useCallback(
     (scenario: 'leave_empty_forget' | 'students_enter' | 'auto_shutdown_now') => {
+      if (!requirePerm('SIMULATE_SCENARIO')) return;
       if (scenario === 'leave_empty_forget') {
         playWarningBeep();
         setClassrooms((prev) =>
@@ -760,14 +894,15 @@ export const ClassroomProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         turnAllOff(selectedClassroomId);
       }
     },
-    [selectedClassroomId, turnAllOff]
+    [selectedClassroomId, turnAllOff, requirePerm]
   );
 
   const toggleRule = useCallback((ruleId: string) => {
+    if (!requirePerm('CONFIG_SCHEDULE')) return;
     setAutomationRules((prev) =>
       prev.map((r) => (r.id === ruleId ? { ...r, enabled: !r.enabled } : r))
     );
-  }, []);
+  }, [requirePerm]);
 
   // 1-second interval ticker for countdowns and live telemetry micro-variations
   useEffect(() => {
@@ -814,7 +949,7 @@ export const ClassroomProvider: React.FC<{ children: React.ReactNode }> = ({ chi
             }
           }
 
-          const vJitter = Number((220 + Math.sin(Date.now() / 3000) * 1.8).toFixed(1));
+          const vJitter = Number((24.0 + Math.sin(Date.now() / 3000) * 0.3).toFixed(1));
           updated.voltageV = vJitter;
 
           return updated;
@@ -881,11 +1016,49 @@ export const ClassroomProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         seedSupabaseClassrooms,
         addSupabaseRoom,
         deleteRoom,
+        addDeviceToRoom,
+        deleteDeviceFromRoom,
         loadDemoClassrooms,
         toggleHardCutoff,
+        authNotice,
+        clearAuthNotice,
+        isReadOnlySession,
       }}
     >
       {children}
+      {authNotice && (
+        <div className="fixed bottom-5 right-5 z-50 max-w-md bg-rose-950/95 border-2 border-rose-600 rounded-xl p-4 shadow-2xl text-rose-100 flex items-start gap-3 backdrop-blur-md transition-all animate-in fade-in slide-in-from-bottom-3 duration-200">
+          <div className="p-2 rounded-lg bg-rose-600/30 text-rose-300 shrink-0 mt-0.5">
+            <ShieldAlert className="h-5 w-5 text-rose-400" />
+          </div>
+          <div className="flex-1 text-xs space-y-1.5">
+            <p className="font-bold text-sm text-white flex items-center gap-1.5">
+              <Lock className="h-3.5 w-3.5 text-rose-400" />
+              Thao Tác Bị Khóa
+            </p>
+            <p className="text-rose-200 leading-relaxed">{authNotice}</p>
+            {!currentUser && (
+              <button
+                onClick={() => {
+                  clearAuthNotice();
+                  openLoginModal();
+                }}
+                className="mt-2 inline-flex items-center gap-1.5 px-3 py-1 bg-rose-600 hover:bg-rose-500 text-white rounded-md font-semibold text-xs transition-colors shadow-sm"
+              >
+                <LogIn className="h-3.5 w-3.5" />
+                Đăng Nhập Để Thao Tác
+              </button>
+            )}
+          </div>
+          <button
+            onClick={clearAuthNotice}
+            className="p-1 text-rose-400 hover:text-white rounded hover:bg-rose-900/50"
+            title="Đóng thông báo"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+      )}
     </ClassroomContext.Provider>
   );
 };
