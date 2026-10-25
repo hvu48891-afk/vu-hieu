@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { useClassroom } from '../context/ClassroomContext';
-import { useAuth, DEMO_USERS } from '../context/AuthContext';
-import { formatWatts, formatVND, calculateElectricityCost, getCurrentEVNTimeSlot, EVN_RATES } from '../utils/calculations';
+import { useAuth } from '../context/AuthContext';
+import { formatWatts } from '../utils/calculations';
+import { esp32HardwareService } from '../services/esp32HardwareService';
 import {
   LayoutDashboard,
   Tv,
@@ -57,6 +58,7 @@ export const Header: React.FC<HeaderProps> = ({ activeTab, setActiveTab }) => {
     setIncludeVat,
     dbSyncStatus,
     supabaseStatus,
+    openESP32Modal,
   } = useClassroom();
 
   const {
@@ -76,9 +78,6 @@ export const Header: React.FC<HeaderProps> = ({ activeTab, setActiveTab }) => {
   const [toastMessage, setToastMessage] = useState<string>('');
   const [toastType, setToastType] = useState<'success' | 'error'>('success');
   const [showUserDropdown, setShowUserDropdown] = useState<boolean>(false);
-
-  const currentSlot = getCurrentEVNTimeSlot();
-  const estCost = calculateElectricityCost(totalEnergyTodayKWh, includeVat);
 
   const handleOpenAddRoom = () => {
     if (!currentUser) {
@@ -157,7 +156,7 @@ export const Header: React.FC<HeaderProps> = ({ activeTab, setActiveTab }) => {
     globalAllOff();
     setShowGlobalOffModal(false);
     setToastType('success');
-    setToastMessage(`Lệnh thành công: Đã ngắt tiếp điểm toàn bộ Relay 220V tại tất cả ${classrooms.length} phòng học! (Công suất hạ về chế độ chờ Standby 6.5W/phòng)`);
+    setToastMessage(`Lệnh thành công: Đã ngắt tiếp điểm toàn bộ Relay 24V tại tất cả ${classrooms.length} phòng học! (Công suất hạ về chế độ chờ Standby 6.5W/phòng)`);
     setShowSuccessToast(true);
     setTimeout(() => {
       setShowSuccessToast(false);
@@ -232,16 +231,28 @@ export const Header: React.FC<HeaderProps> = ({ activeTab, setActiveTab }) => {
 
           {/* Real-time Campus Metrics */}
           <div className="flex flex-wrap items-center gap-3 sm:gap-5 text-xs text-slate-300">
-            {/* Live EVN Tariff Slot */}
-            <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-slate-800/80 border border-slate-700/80">
-              <Clock className="h-3.5 w-3.5 text-amber-400" />
-              <div>
-                <span className="text-[9px] text-slate-400 uppercase block leading-none">EVN 2941/QĐ-BCT</span>
-                <span className="font-semibold text-white text-[11px]">
-                  {currentSlot.name}: <strong className="text-amber-300">{currentSlot.rate.toLocaleString('vi-VN')} đ</strong>/kWh
+            {/* Live ESP32 Hardware Status Badge */}
+            <button
+              onClick={openESP32Modal}
+              title="Nhấn để mở Bảng Kết Nối Mạch ESP32 Thực Tế (Web Serial / USB / WiFi)"
+              className={`flex items-center gap-2 px-2.5 py-1.5 rounded-lg border transition-all ${
+                esp32HardwareService.getStatus() === 'connected'
+                  ? 'bg-emerald-500/15 border-emerald-500/40 text-emerald-300 hover:bg-emerald-500/25'
+                  : 'bg-slate-800/90 border-slate-700/80 text-slate-300 hover:bg-slate-800 hover:border-slate-600'
+              }`}
+            >
+              <Cpu className={`h-4 w-4 ${esp32HardwareService.getStatus() === 'connected' ? 'text-emerald-400 animate-pulse' : 'text-cyan-400'}`} />
+              <div className="text-left">
+                <span className="text-[9px] text-slate-400 uppercase block leading-none font-semibold">Mạch ESP32 24V</span>
+                <span className="font-semibold text-[11px] flex items-center gap-1">
+                  {esp32HardwareService.getStatus() === 'connected' ? (
+                    <span className="text-emerald-400 font-mono">Đã nối phần cứng ●</span>
+                  ) : (
+                    <span className="text-slate-300">Kết nối mạch thật</span>
+                  )}
                 </span>
               </div>
-            </div>
+            </button>
 
             <div className="flex items-center gap-2">
               <Building2 className="h-4 w-4 text-slate-400" />
@@ -268,18 +279,9 @@ export const Header: React.FC<HeaderProps> = ({ activeTab, setActiveTab }) => {
             <div className="h-6 w-px bg-slate-800 hidden sm:block" />
 
             <div>
-              <div className="flex items-center gap-1">
-                <span className="text-slate-400 block text-[10px] uppercase">Tiền điện thực tế</span>
-                <button
-                  onClick={() => setIncludeVat(!includeVat)}
-                  title="Nhấn để đổi giữa có VAT 8% và chưa VAT"
-                  className="text-[9px] px-1 py-0.2 rounded bg-slate-800 text-slate-400 hover:text-white"
-                >
-                  {includeVat ? 'VAT 8%' : 'Chưa VAT'}
-                </button>
-              </div>
-              <span className="font-mono font-medium text-emerald-300">
-                {totalEnergyTodayKWh.toFixed(1)} kWh · {formatVND(estCost, false)}
+              <span className="text-slate-400 block text-[10px] uppercase">Tổng Điện Năng Tiêu Thụ</span>
+              <span className="font-mono font-semibold text-emerald-300">
+                {totalEnergyTodayKWh.toFixed(2)} kWh · Điện áp: 24.0V
               </span>
             </div>
 
@@ -342,7 +344,7 @@ export const Header: React.FC<HeaderProps> = ({ activeTab, setActiveTab }) => {
 
               <button
                 onClick={handleOpenGlobalOff}
-                title="Ngắt nguồn 220V toàn bộ thiết bị các phòng học"
+                title="Ngắt nguồn 24V toàn bộ thiết bị các phòng học"
                 className="flex items-center gap-1 px-3 py-1.5 text-xs font-semibold text-rose-200 bg-rose-950/70 hover:bg-rose-900 border border-rose-700/80 rounded-md transition-colors shadow-sm active:scale-95"
               >
                 <Power className="h-3.5 w-3.5 text-rose-400" />
@@ -436,8 +438,8 @@ export const Header: React.FC<HeaderProps> = ({ activeTab, setActiveTab }) => {
                           <span className="text-slate-400 block leading-relaxed">
                             {currentUser.role === 'ADMIN' && 'Toàn quyền: Bật/tắt tất cả phòng học, ngắt điện toàn trường khẩn cấp, cấu hình tự động.'}
                             {currentUser.role === 'LECTURER' && `Quản lý phòng được phân công (${currentUser.assignedRooms.includes('*') ? 'Toàn bộ' : currentUser.assignedRooms.join(', ')}). Không được ngắt toàn trường.`}
-                            {currentUser.role === 'TECHNICIAN' && 'Kỹ thuật viên: Giám sát đo lường PZEM-004T, kiểm tra tiếp điểm Relay 220V.'}
-                            {currentUser.role === 'STUDENT' && 'Chế độ Chỉ xem: Xem thông số nhiệt độ, lịch học, bị khóa lệnh điều khiển Relay 220V.'}
+                            {currentUser.role === 'TECHNICIAN' && 'Kỹ thuật viên: Giám sát đo lường điện năng, kiểm tra tiếp điểm Relay 24V.'}
+                            {currentUser.role === 'STUDENT' && 'Chế độ Chỉ xem: Xem thông số nhiệt độ, lịch học, bị khóa lệnh điều khiển Relay 24V.'}
                           </span>
                         </div>
 
@@ -515,7 +517,7 @@ export const Header: React.FC<HeaderProps> = ({ activeTab, setActiveTab }) => {
                     Xác Nhận Ngắt Điện Toàn Trường?
                   </h3>
                   <p className="text-xs text-slate-400 mt-1">
-                    Lệnh này sẽ phát bản tin MQTT Broadcast ngắt tức thì tất cả tiếp điểm Relay 220V và Khởi động từ Contactor tại <strong className="text-rose-300">{classrooms.length} phòng học</strong>.
+                    Lệnh này sẽ phát bản tin MQTT Broadcast ngắt tức thì tất cả tiếp điểm Relay 24V và Khởi động từ Contactor tại <strong className="text-rose-300">{classrooms.length} phòng học</strong>.
                   </p>
                 </div>
               </div>
@@ -676,7 +678,7 @@ export const Header: React.FC<HeaderProps> = ({ activeTab, setActiveTab }) => {
                   </span>
                 </div>
                 <p className="text-xs text-slate-400">
-                  Cơ sở dữ liệu đang lưu trữ và đồng bộ tức thời 5 phòng học, cảm biến PZEM-004T và trạng thái rơ le 220V cho toàn trường.
+                  Cơ sở dữ liệu đang lưu trữ và đồng bộ tức thời 5 phòng học, cảm biến đo điện và trạng thái rơ le 24V cho toàn trường.
                 </p>
               </div>
 

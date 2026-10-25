@@ -14,7 +14,7 @@ export interface PermissionMeta {
   action: PermissionAction;
   name: string;
   description: string;
-  category: 'Cơ sở dữ liệu & Phòng học' | 'Điều khiển Tiếp điểm 220V' | 'Vận hành & Tự động' | 'Hệ thống & Người dùng';
+  category: 'Cơ sở dữ liệu & Phòng học' | 'Điều khiển Tiếp điểm 24V' | 'Vận hành & Tự động' | 'Hệ thống & Người dùng';
   riskLevel: 'Thấp' | 'Trung bình' | 'Cao' | 'Nghiêm trọng';
 }
 
@@ -35,22 +35,22 @@ export const PERMISSION_LIST: PermissionMeta[] = [
   },
   {
     action: 'CONTROL_DEVICE',
-    name: 'Đóng/ngắt Relay 220V (Đèn, Máy lạnh, Quạt)',
+    name: 'Đóng/ngắt Relay 24V (Đèn, Máy lạnh, Quạt)',
     description: 'Thao tác điều khiển đóng cắt tải điện vật lý qua tiếp điểm Contactor/Relay và chỉnh nhiệt độ điều hòa.',
-    category: 'Điều khiển Tiếp điểm 220V',
+    category: 'Điều khiển Tiếp điểm 24V',
     riskLevel: 'Cao',
   },
   {
     action: 'GLOBAL_SHUTDOWN',
     name: 'Ngắt điện toàn trường khẩn cấp',
     description: 'Phát bản tin MQTT Broadcast ngắt tức thì tất cả tiếp điểm Relay tại mọi phòng học trên toàn trường.',
-    category: 'Điều khiển Tiếp điểm 220V',
+    category: 'Điều khiển Tiếp điểm 24V',
     riskLevel: 'Nghiêm trọng',
   },
   {
     action: 'CONFIG_SCHEDULE',
     name: 'Cài đặt TKB & Luật tự động hóa',
-    description: 'Thiết lập thời khóa biểu học vụ, quy tắc tự ngắt khi phòng trống sau N phút, và biểu giá điện EVN.',
+    description: 'Thiết lập thời khóa biểu học vụ và quy tắc tự ngắt khi phòng trống sau N phút để đảm bảo an toàn.',
     category: 'Vận hành & Tự động',
     riskLevel: 'Trung bình',
   },
@@ -165,64 +165,11 @@ export const ROLE_METAS: Record<UserRole, RoleMeta> = {
     badgeText: 'text-emerald-300',
     badgeBorder: 'border-emerald-500/40',
     summary: 'Chỉ xem dữ liệu (Read-only)',
-    description: 'Chỉ được xem nhiệt độ, độ ẩm, lịch học và biểu đồ tiêu thụ điện. Toàn bộ nút bật/tắt Relay 220V bị khóa nhằm đảm bảo an toàn điện trường học.',
+    description: 'Chỉ được xem nhiệt độ, độ ẩm, lịch học và biểu đồ tiêu thụ điện. Toàn bộ nút bật/tắt Relay 24V bị khóa nhằm đảm bảo an toàn điện trường học.',
   },
 };
 
-export const DEMO_USERS: (User & { password: string; description: string })[] = [
-  {
-    id: 'user-admin',
-    name: 'ThS. Trần Quang Vinh',
-    email: 'admin@campus.edu.vn',
-    password: 'admin',
-    role: 'ADMIN',
-    roleTitle: 'Quản Trị Viên Cơ Sở Vật Chất',
-    department: 'Phòng Quản Trị Thiết Bị & CSVC',
-    avatarInitials: 'QV',
-    assignedRooms: ['*'],
-    description: 'Toàn quyền: Bật/tắt tất cả phòng học, ngắt điện toàn trường khẩn cấp, cấu hình tự động hóa & biểu giá EVN.',
-    createdAt: '2026-01-10',
-  },
-  {
-    id: 'user-lecturer',
-    name: 'TS. Nguyễn Văn Tuấn',
-    email: 'giangvien@campus.edu.vn',
-    password: 'gv',
-    role: 'LECTURER',
-    roleTitle: 'Giảng Viên Giảng Dạy',
-    department: 'Bộ môn Mạng & Hệ thống Nhúng (Khoa ĐTVT)',
-    avatarInitials: 'VT',
-    assignedRooms: ['cr-a101', 'cr-a102', 'A101', 'A102'],
-    description: 'Quyền điều khiển phòng A101 & A102: Thao tác bật/tắt đèn, quạt, chỉnh máy lạnh, không được ngắt điện toàn trường.',
-    createdAt: '2026-02-15',
-  },
-  {
-    id: 'user-tech',
-    name: 'KS. Lê Hoàng Minh',
-    email: 'kythuat@campus.edu.vn',
-    password: 'kt',
-    role: 'TECHNICIAN',
-    roleTitle: 'Kỹ Thuật Viên Hệ Thống IoT',
-    department: 'Trung Tâm Thí Nghiệm & Đo Kiểm Phần Cứng',
-    avatarInitials: 'HM',
-    assignedRooms: ['*'],
-    description: 'Kỹ thuật viên: Giám sát thông số PZEM-004T, kiểm tra tiếp điểm Relay 220V, xem live MQTT console, test kịch bản, thêm phòng test.',
-    createdAt: '2026-03-01',
-  },
-  {
-    id: 'user-student',
-    name: 'Nguyễn Quốc Bảo (SV 21DTV01)',
-    email: 'sinhvien@campus.edu.vn',
-    password: 'sv',
-    role: 'STUDENT',
-    roleTitle: 'Sinh Viên (Chế độ Chỉ xem)',
-    department: 'Lớp 21DTV01 - Khoa Điện tử Viễn thông',
-    avatarInitials: 'QB',
-    assignedRooms: [],
-    description: 'Chỉ xem (View-only): Xem lịch học vụ, nhiệt độ phòng, biểu đồ năng lượng, bị khóa quyền điều khiển Relay 220V.',
-    createdAt: '2026-03-12',
-  },
-];
+export const DEMO_USERS: (User & { password: string; description: string })[] = [];
 
 interface AuthContextType {
   currentUser: User | null;
@@ -268,20 +215,24 @@ const STORAGE_SESSION_KEY = 'smartclass_auth_user_session';
 const STORAGE_USERS_KEY = 'smartclass_auth_users_list_v2';
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  // Load users list from storage or default
+  // Load users list from storage or default (filter out student@gmail.com)
   const [users, setUsers] = useState<User[]>(() => {
     try {
       const saved = localStorage.getItem(STORAGE_USERS_KEY);
       if (saved) {
         const parsed = JSON.parse(saved);
         if (Array.isArray(parsed) && parsed.length > 0) {
-          return parsed;
+          const filtered = parsed.filter(
+            (u: any) => u.email?.toLowerCase() !== 'student@gmail.com'
+          );
+          localStorage.setItem(STORAGE_USERS_KEY, JSON.stringify(filtered));
+          return filtered;
         }
       }
     } catch {
       // ignore
     }
-    return DEMO_USERS;
+    return [];
   });
 
   // Khi khởi động web luôn bắt đầu bằng đăng nhập trước
@@ -293,50 +244,73 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // Sync users list to localStorage
   useEffect(() => {
     try {
-      localStorage.setItem(STORAGE_USERS_KEY, JSON.stringify(users));
+      const sanitized = users.filter((u) => u.email?.toLowerCase() !== 'student@gmail.com');
+      localStorage.setItem(STORAGE_USERS_KEY, JSON.stringify(sanitized));
     } catch {
       // ignore
     }
   }, [users]);
 
-  // Sync current user session to localStorage
+  // Always clear any saved session on startup to ensure no auto-login occurs
   useEffect(() => {
     try {
-      if (currentUser) {
-        localStorage.setItem(STORAGE_SESSION_KEY, JSON.stringify(currentUser));
-      } else {
-        localStorage.removeItem(STORAGE_SESSION_KEY);
+      localStorage.removeItem(STORAGE_SESSION_KEY);
+      // Ensure student@gmail.com is purged from storage
+      const saved = localStorage.getItem(STORAGE_USERS_KEY);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) {
+          const cleaned = parsed.filter((u: any) => u.email?.toLowerCase() !== 'student@gmail.com');
+          localStorage.setItem(STORAGE_USERS_KEY, JSON.stringify(cleaned));
+        }
       }
     } catch {
       // ignore
     }
-  }, [currentUser]);
+  }, []);
 
-  // Load and sync users from Supabase 'users' table
+  // Load and sync users from Firestore 'users' collection & Supabase 'users' table
   useEffect(() => {
-    const loadSupabaseUsers = async () => {
+    const loadDatabaseUsers = async () => {
       try {
-        const sbUsers = await supabaseService.fetchUsers();
-        if (sbUsers && sbUsers.length > 0) {
-          setUsers((prev) => {
-            const map = new Map<string, User>();
-            prev.forEach((u) => map.set(u.email.toLowerCase(), u));
+        const [firestoreUsers, sbUsers] = await Promise.all([
+          dbService.fetchUsers().catch(() => []),
+          supabaseService.fetchUsers().catch(() => []),
+        ]);
 
-            sbUsers.forEach((row) => {
-              const emailKey = row.email.toLowerCase();
-              if (!map.has(emailKey)) {
+        setUsers((prev) => {
+          const map = new Map<string, User>();
+          prev.forEach((u) => map.set(u.email.toLowerCase(), u));
+
+          // Merge Firestore users
+          if (Array.isArray(firestoreUsers)) {
+            firestoreUsers.forEach((u: any) => {
+              if (u && u.email) {
+                const emailKey = u.email.toLowerCase();
+                const existing = map.get(emailKey);
+                // Preserve password if already present
+                map.set(emailKey, { ...existing, ...u });
+              }
+            });
+          }
+
+          // Merge Supabase users
+          if (Array.isArray(sbUsers)) {
+            sbUsers.forEach((row: any) => {
+              const emailKey = row.email?.toLowerCase();
+              if (emailKey && !map.has(emailKey)) {
                 let mappedRole: UserRole = 'LECTURER';
-                const r = row.role.toLowerCase();
+                const r = (row.role || '').toLowerCase();
                 if (r === 'admin' || r === 'manager') mappedRole = 'ADMIN';
                 else if (r === 'technician' || r === 'tech') mappedRole = 'TECHNICIAN';
                 else if (r === 'student') mappedRole = 'STUDENT';
 
                 const roleMeta = ROLE_METAS[mappedRole];
                 const initials =
-                  row.full_name
+                  (row.full_name || '')
                     .split(' ')
                     .filter(Boolean)
-                    .map((n) => n[0])
+                    .map((n: string) => n[0])
                     .slice(-2)
                     .join('')
                     .toUpperCase() || 'SB';
@@ -357,71 +331,74 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 map.set(emailKey, u);
               }
             });
+          }
 
-            return Array.from(map.values());
-          });
-        }
+          map.delete('student@gmail.com');
+          return Array.from(map.values()).filter((u) => u.email?.toLowerCase() !== 'student@gmail.com');
+        });
       } catch (err) {
-        console.warn('[AuthContext] Load Supabase users failed:', err);
+        console.warn('[AuthContext] Load database users failed:', err);
       }
     };
 
-    loadSupabaseUsers();
+    loadDatabaseUsers();
   }, []);
 
   // If a user in `users` gets updated, keep `currentUser` updated if it's the same user
   useEffect(() => {
     if (currentUser) {
-      const updated = users.find((u) => u.id === currentUser.id);
-      if (updated && JSON.stringify(updated) !== JSON.stringify(currentUser)) {
-        setCurrentUser(updated);
+      if (currentUser.email?.toLowerCase() === 'student@gmail.com') {
+        setCurrentUser(null);
+      } else {
+        const updated = users.find((u) => u.id === currentUser.id);
+        if (updated && JSON.stringify(updated) !== JSON.stringify(currentUser)) {
+          setCurrentUser(updated);
+        }
       }
     }
   }, [users, currentUser]);
 
   const login = useCallback(
     (identifier: string, password?: string): { success: boolean; error?: string } => {
-      const cleanInput = identifier.trim().toLowerCase();
-      if (!cleanInput) {
-        return { success: false, error: 'Vui lòng nhập địa chỉ Email hoặc Tên đăng nhập!' };
+      const cleanInput = (identifier || '').trim().toLowerCase();
+      const inputPass = (password || '').trim();
+
+      if (!cleanInput || !inputPass || cleanInput === 'student@gmail.com') {
+        return {
+          success: false,
+          error: 'Tài khoản và mật khẩu không đúng. Vui lòng kiểm tra lại!',
+        };
       }
 
-      // Tìm trong danh sách tài khoản đã đăng ký (email, username, hoặc tiền tố email)
+      // Tìm trong danh sách tài khoản đã đăng ký trong Database
       const matched = users.find((u) => {
         const uEmail = (u.email || '').toLowerCase().trim();
         const uUsername = (u.username || '').toLowerCase().trim();
-        const uPrefix = uEmail.split('@')[0];
-        return uEmail === cleanInput || (uUsername && uUsername === cleanInput) || uPrefix === cleanInput;
+        return uEmail === cleanInput || (uUsername && uUsername === cleanInput);
       });
 
-      if (matched) {
-        const inputPass = (password || '').trim();
-        const expectedPass = (matched.password || '').trim();
-        // Kiểm tra mật khẩu (khớp mật khẩu đã đăng ký, hoặc 123456)
-        if (expectedPass && inputPass && inputPass !== expectedPass && inputPass !== '123456') {
-          return {
-            success: false,
-            error: `Mật khẩu không chính xác cho tài khoản "${matched.name}". Vui lòng kiểm tra lại!`,
-          };
-        }
-        setCurrentUser(matched);
-        setIsLoginModalOpen(false);
-        return { success: true };
+      // Chỉ cho phép các tài khoản đã đăng ký trong Database và mật khẩu chính xác
+      if (!matched || !matched.password || matched.password !== inputPass) {
+        return {
+          success: false,
+          error: 'Tài khoản và mật khẩu không đúng. Vui lòng kiểm tra lại!',
+        };
       }
 
-      return {
-        success: false,
-        error: `Tài khoản "${identifier}" chưa được đăng ký trong hệ thống. Vui lòng chuyển sang tab "Đăng Ký Tài Khoản" hoặc kiểm tra lại thông tin.`,
-      };
+      setCurrentUser(matched);
+      setIsLoginModalOpen(false);
+      return { success: true };
     },
     [users]
   );
 
   const quickLogin = useCallback(
     (role: UserRole) => {
-      const matched = users.find((u) => u.role === role) || DEMO_USERS.find((u) => u.role === role) || users[0];
-      setCurrentUser(matched);
-      setIsLoginModalOpen(false);
+      const matched = users.find((u) => u.role === role) || users[0];
+      if (matched) {
+        setCurrentUser(matched);
+        setIsLoginModalOpen(false);
+      }
     },
     [users]
   );
@@ -794,10 +771,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       // 2. Write to Firestore 'users' collection
       await dbService.saveUser(newUser);
 
-      // 3. Update React state and switch current session
+      // 3. Update React state (do not auto-login, require manual login)
       setUsers((prev) => [newUser, ...prev]);
-      setCurrentUser(newUser);
-      setIsLoginModalOpen(false);
 
       return { success: true, user: newUser };
     },
@@ -828,8 +803,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   );
 
   const resetDefaultUsers = useCallback(() => {
-    setUsers(DEMO_USERS);
-    setCurrentUser(DEMO_USERS[0]);
+    setUsers([]);
+    setCurrentUser(null);
   }, []);
 
   /**
@@ -862,7 +837,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
         return {
           allowed: false,
-          reason: 'Tài khoản Sinh viên ở chế độ Chỉ xem. Mọi thao tác đóng/ngắt thiết bị Relay 220V, Aptomat và cấu hình hệ thống bị khóa theo quy định!',
+          reason: 'Tài khoản Sinh viên ở chế độ Chỉ xem. Mọi thao tác đóng/ngắt thiết bị Relay 24V, Aptomat và cấu hình hệ thống bị khóa theo quy định!',
         };
       }
 
@@ -913,7 +888,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             case 'CONTROL_DEVICE':
               return {
                 allowed: false,
-                reason: 'Tài khoản Sinh viên ở chế độ Chỉ xem. Quyền đóng ngắt tiếp điểm Relay 220V bị khóa để đảm bảo an toàn điện trường học.',
+                reason: 'Tài khoản Sinh viên ở chế độ Chỉ xem. Quyền đóng ngắt tiếp điểm Relay 24V bị khóa để đảm bảo an toàn điện trường học.',
               };
             default:
               return {

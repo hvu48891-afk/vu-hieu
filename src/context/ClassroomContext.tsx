@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
-import { Classroom, AutomationRule, HardwareLog, DeviceType, PermissionAction } from '../types';
+import { Classroom, Device, AutomationRule, HardwareLog, DeviceType, PermissionAction, TimetableSlot } from '../types';
 import { INITIAL_CLASSROOMS, INITIAL_AUTOMATION_RULES } from '../data/mockData';
 import { playRelayClick, playWarningBeep, setSoundEnabled, getSoundEnabled } from '../utils/audio';
 import { calculateRealisticAcPower } from '../utils/calculations';
@@ -7,6 +7,7 @@ import { dbService } from '../services/dbService';
 import { validateFirestoreConnection } from '../lib/firebase';
 import { SUPABASE_URL, isSupabaseConfigured, checkSupabaseConnection } from '../lib/supabase';
 import { supabaseService } from '../services/supabaseService';
+import { esp32HardwareService, ESP32Telemetry } from '../services/esp32HardwareService';
 import { useAuth } from './AuthContext';
 import { Lock, ShieldAlert, X, LogIn } from 'lucide-react';
 
@@ -64,16 +65,24 @@ interface ClassroomContextType {
       name: string;
       type: DeviceType;
       powerRatingW: number;
+      brandModel?: string;
+      relayPin?: string;
       isOn?: boolean;
       targetTemp?: number;
     }
   ) => Promise<{ success: boolean; error?: string }>;
   deleteDeviceFromRoom: (classroomId: string, deviceId: string) => Promise<{ success: boolean; error?: string }>;
+  addTimetableSlot: (classroomId: string, slotData: Omit<TimetableSlot, 'id'>) => Promise<{ success: boolean; error?: string }>;
+  updateTimetableSlot: (classroomId: string, slotId: string, updatedData: Partial<TimetableSlot>) => Promise<{ success: boolean; error?: string }>;
+  deleteTimetableSlot: (classroomId: string, slotId: string) => Promise<{ success: boolean; error?: string }>;
   loadDemoClassrooms: () => void;
   toggleHardCutoff: (classroomId: string) => void;
   authNotice: string | null;
   clearAuthNotice: () => void;
   isReadOnlySession: boolean;
+  isESP32ModalOpen: boolean;
+  openESP32Modal: () => void;
+  closeESP32Modal: () => void;
 }
 
 const ClassroomContext = createContext<ClassroomContextType | null>(null);
@@ -161,12 +170,16 @@ export const ClassroomProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     message: 'Đang kết nối cơ sở dữ liệu Supabase...'
   });
   const isSyncingFromCloud = useRef(false);
+  const [isESP32ModalOpen, setIsESP32ModalOpen] = useState<boolean>(false);
+  const openESP32Modal = useCallback(() => setIsESP32ModalOpen(true), []);
+  const closeESP32Modal = useCallback(() => setIsESP32ModalOpen(false), []);
+
   const [hardwareLogs, setHardwareLogs] = useState<HardwareLog[]>([
     {
       id: 'log-1',
       timestamp: new Date().toLocaleTimeString('vi-VN'),
       topic: 'smartclass/telemetry',
-      payload: '{"V":221.4,"I":0.0,"P":0,"PF":0.96,"Freq":50.0,"status":"SUPABASE_SYNCED"}',
+      payload: '{"V":24.05,"I":0.0,"P":0,"PF":0.98,"Freq":50.0,"status":"PZEM_24V_SYNCED"}',
       direction: 'IN',
       type: 'TELEMETRY',
     },
@@ -191,6 +204,43 @@ export const ClassroomProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     };
     setHardwareLogs((prev) => [newLog, ...prev.slice(0, 49)]);
   }, []);
+
+  // Listen to physical ESP32 Hardware telemetry (Web Serial / USB / WiFi)
+  useEffect(() => {
+    const unsubscribe = esp32HardwareService.onTelemetry((data: ESP32Telemetry) => {
+      if (!esp32HardwareService.isOverrideTelemetry()) return;
+      const boundId = esp32HardwareService.getBoundClassroomId();
+
+      setClassrooms((prev) =>
+        prev.map((cr) => {
+          if (cr.id !== boundId && cr.code !== boundId) return cr;
+          return {
+            ...cr,
+            voltageV: data.voltageV,
+            currentA: data.currentA,
+            totalPowerW: data.powerW,
+            apparentPowerVA: Math.round(data.voltageV * data.currentA),
+            temperature: data.temperature !== undefined ? data.temperature : cr.temperature,
+            humidity: data.humidity !== undefined ? data.humidity : cr.humidity,
+            hasMotion: data.motionDetected !== undefined ? (data.motionDetected ? 1 : 0) : cr.hasMotion,
+            isVacant: data.motionDetected !== undefined ? !data.motionDetected : cr.isVacant,
+            powerFactor: data.powerFactor ?? 0.98,
+            frequencyHz: data.frequencyHz ?? 50.0,
+            lastUpdated: 'Mạch ESP32 thật',
+          };
+        })
+      );
+
+      addHardwareLog(
+        `smartclass/esp32/telemetry`,
+        `{"V":${data.voltageV},"I":${data.currentA},"P":${data.powerW},"T":${data.temperature ?? 0}}`,
+        'IN',
+        'TELEMETRY'
+      );
+    });
+
+    return () => unsubscribe();
+  }, [addHardwareLog]);
 
   // Fetch classrooms from Supabase
   const loadFromSupabase = useCallback(async () => {
@@ -425,61 +475,322 @@ export const ClassroomProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         name: string;
         type: DeviceType;
         powerRatingW: number;
+        brandModel?: string;
+        relayPin?: string;
         isOn?: boolean;
         targetTemp?: number;
       }
     ): Promise<{ success: boolean; error?: string }> => {
       if (!requirePerm('CONTROL_DEVICE', classroomId)) {
-        return { success: false, error: 'Bạn không có quyền thêm thiết bị.' };
+        return { success: false, error: 'Bạn không có quyền thêm thiết bị vào phòng này.' };
       }
-      const numericRoomId = parseInt(classroomId.replace(/[^0-9]/g, ''), 10);
-      if (isNaN(numericRoomId)) {
-        return { success: false, error: 'Mã phòng không hợp lệ.' };
+
+      const targetRoom = classrooms.find((c) => c.id === classroomId || c.code === classroomId);
+      if (!targetRoom) {
+        return { success: false, error: 'Không tìm thấy phòng học tương ứng!' };
       }
-      const res = await supabaseService.createDevice({
-        room_id: numericRoomId,
-        device_name: deviceData.name,
-        device_type: deviceData.type,
-        power_rating_watts: deviceData.powerRatingW,
-        is_on: deviceData.isOn ?? false,
-        target_temperature: deviceData.targetTemp ?? (deviceData.type === 'ac' ? 24 : null),
+
+      const cleanCode = (targetRoom.code || targetRoom.id).replace(/[^a-zA-Z0-9]/g, '').toLowerCase() || 'room';
+      const newDevId = `dev-${cleanCode}-${Date.now().toString(36)}-${Math.random().toString(36).substring(2, 6)}`;
+      const nextRelayPin = deviceData.relayPin?.trim() || `GPIO ${16 + (targetRoom.devices.length % 16)} (Relay 24V)`;
+      const powerW = Math.max(1, Number(deviceData.powerRatingW) || 100);
+      const isInitialOn = deviceData.isOn ?? false;
+
+      const newDevice: Device = {
+        id: newDevId,
+        name: deviceData.name.trim(),
+        brandModel: deviceData.brandModel?.trim() || `${deviceData.name.trim()} (Chuẩn 24V)`,
+        type: deviceData.type,
+        isOn: isInitialOn,
+        powerRatingW: powerW,
+        currentPowerW: isInitialOn ? powerW : 0,
+        nominalCurrentA: Number((powerW / 24).toFixed(2)),
+        relayPin: nextRelayPin,
+        relayState: isInitialOn ? 'CLOSED' : 'OPEN',
+        ...(deviceData.type === 'ac'
+          ? {
+              acSettings: {
+                targetTemp: deviceData.targetTemp || 24,
+                mode: 'cool' as const,
+                fanSpeed: 'med' as const,
+              },
+            }
+          : {}),
+        ...(deviceData.type === 'fan' ? { fanSpeed: 2 as const } : {}),
+      };
+
+      const updatedDevices = [...targetRoom.devices, newDevice];
+      const updatedRoom = recalcClassroomElectrics({
+        ...targetRoom,
+        devices: updatedDevices,
+        lastUpdated: 'Vừa thêm thiết bị mới',
       });
-      if (res.success) {
-        await loadFromSupabase();
-        supabaseService.logActivity({
-          device_id: res.data?.id,
-          control_source: 'WEB_ADMIN',
-          action_performed: `Thêm thiết bị "${deviceData.name}" (${deviceData.powerRatingW}W) vào phòng ID: ${numericRoomId}`,
-        });
-        return { success: true };
+
+      // 1. Cập nhật state tức thì
+      setClassrooms((prev) =>
+        prev.map((cr) => (cr.id === classroomId || cr.code === classroomId ? updatedRoom : cr))
+      );
+
+      // 2. Lưu trực tiếp vào Cloud Firestore
+      await dbService.saveClassroom(updatedRoom).catch((err) => {
+        console.warn('[Firestore] Lỗi lưu thiết bị mới:', err);
+      });
+
+      // 3. Đồng bộ Supabase
+      supabaseService.saveClassroom(updatedRoom).catch(console.warn);
+      const numericRoomId = parseInt(classroomId.replace(/[^0-9]/g, ''), 10);
+      if (!isNaN(numericRoomId) && numericRoomId > 0) {
+        supabaseService
+          .createDevice({
+            room_id: numericRoomId,
+            device_name: deviceData.name.trim(),
+            device_type: deviceData.type,
+            power_rating_watts: powerW,
+            is_on: isInitialOn,
+            target_temperature: deviceData.targetTemp ?? (deviceData.type === 'ac' ? 24 : null),
+          })
+          .catch(console.warn);
       }
-      return { success: false, error: res.error };
+
+      addHardwareLog(
+        `smartclass/${classroomId}/device`,
+        JSON.stringify({
+          event: 'DEVICE_ADDED',
+          room: targetRoom.code,
+          name: deviceData.name,
+          power: powerW,
+          relay: nextRelayPin,
+        }),
+        'IN',
+        'COMMAND'
+      );
+
+      return { success: true };
     },
-    [requirePerm, loadFromSupabase]
+    [classrooms, requirePerm, addHardwareLog]
   );
 
   const deleteDeviceFromRoom = useCallback(
     async (classroomId: string, deviceId: string): Promise<{ success: boolean; error?: string }> => {
       if (!requirePerm('CONTROL_DEVICE', classroomId)) {
-        return { success: false, error: 'Bạn không có quyền xóa thiết bị.' };
+        return { success: false, error: 'Bạn không có quyền xóa thiết bị khỏi phòng này.' };
       }
+
+      const targetRoom = classrooms.find((c) => c.id === classroomId || c.code === classroomId);
+      if (!targetRoom) {
+        return { success: false, error: 'Không tìm thấy phòng học tương ứng!' };
+      }
+
+      const devToDelete = targetRoom.devices.find((d) => d.id === deviceId);
+      const updatedDevices = targetRoom.devices.filter((d) => d.id !== deviceId);
+      const updatedRoom = recalcClassroomElectrics({
+        ...targetRoom,
+        devices: updatedDevices,
+        lastUpdated: 'Vừa xóa thiết bị',
+      });
+
+      // 1. Cập nhật state ngay lập tức
+      setClassrooms((prev) =>
+        prev.map((cr) => (cr.id === classroomId || cr.code === classroomId ? updatedRoom : cr))
+      );
+
+      // 2. Lưu trực tiếp vào Cloud Firestore
+      await dbService.saveClassroom(updatedRoom).catch((err) => {
+        console.warn('[Firestore] Lỗi xóa thiết bị:', err);
+      });
+
+      // 3. Đồng bộ Supabase
+      supabaseService.saveClassroom(updatedRoom).catch(console.warn);
       const numericDevId = parseInt(deviceId.replace(/[^0-9]/g, ''), 10);
-      if (isNaN(numericDevId)) {
-        return { success: false, error: 'Mã thiết bị không hợp lệ.' };
+      if (!isNaN(numericDevId) && numericDevId > 0) {
+        supabaseService.deleteDevice(numericDevId).catch(console.warn);
       }
-      const res = await supabaseService.deleteDevice(numericDevId);
-      if (res.success) {
-        await loadFromSupabase();
-        supabaseService.logActivity({
-          device_id: numericDevId,
-          control_source: 'WEB_ADMIN',
-          action_performed: `Xóa thiết bị ID: ${numericDevId} khỏi phòng [${classroomId}]`,
-        });
-        return { success: true };
-      }
-      return { success: false, error: res.error };
+
+      addHardwareLog(
+        `smartclass/${classroomId}/device`,
+        JSON.stringify({
+          event: 'DEVICE_DELETED',
+          room: targetRoom.code,
+          deviceId,
+          deviceName: devToDelete?.name,
+        }),
+        'IN',
+        'COMMAND'
+      );
+
+      return { success: true };
     },
-    [requirePerm, loadFromSupabase]
+    [classrooms, requirePerm, addHardwareLog]
+  );
+
+  const addTimetableSlot = useCallback(
+    async (
+      classroomId: string,
+      slotData: Omit<TimetableSlot, 'id'>
+    ): Promise<{ success: boolean; error?: string }> => {
+      const targetRoomId = slotData.roomId || classroomId;
+      if (!requirePerm('CONFIG_SCHEDULE', targetRoomId)) {
+        return { success: false, error: 'Bạn không có quyền thêm lịch học vụ.' };
+      }
+
+      const targetRoom = classrooms.find((c) => c.id === targetRoomId || c.code === targetRoomId);
+      const roomCode = targetRoom?.code || slotData.roomCode || '';
+      const roomName = targetRoom?.name || slotData.roomName || '';
+
+      const newSlot: TimetableSlot = {
+        ...slotData,
+        roomId: targetRoomId,
+        roomCode,
+        roomName,
+        id: 'slot-' + Date.now() + '-' + Math.random().toString(36).substring(2, 6),
+      };
+
+      setClassrooms((prev) =>
+        prev.map((cr) => {
+          if (cr.id !== targetRoomId && cr.code !== targetRoomId) return cr;
+          const currentSlots = cr.timetable || [];
+          const updatedSlots = [...currentSlots, newSlot];
+          const updatedRoom = { ...cr, timetable: updatedSlots };
+          supabaseService.saveClassroom(updatedRoom).catch(console.error);
+          dbService.saveClassroom(updatedRoom).catch(console.error);
+          return updatedRoom;
+        })
+      );
+
+      // Persist to standalone database collections
+      dbService.saveSchedule(newSlot).catch(console.error);
+      supabaseService.saveSchedule(newSlot, targetRoomId).catch(console.error);
+
+      addHardwareLog(
+        `smartclass/${targetRoomId}/schedule`,
+        `{"event":"TIMETABLE_ADDED","subject":"${slotData.subject}","room":"${roomCode}","period":"${slotData.period}"}`,
+        'IN',
+        'COMMAND'
+      );
+
+      return { success: true };
+    },
+    [classrooms, addHardwareLog, requirePerm]
+  );
+
+  const updateTimetableSlot = useCallback(
+    async (
+      classroomId: string,
+      slotId: string,
+      updatedData: Partial<TimetableSlot>
+    ): Promise<{ success: boolean; error?: string }> => {
+      if (!requirePerm('CONFIG_SCHEDULE', classroomId)) {
+        return { success: false, error: 'Bạn không có quyền sửa lịch học vụ.' };
+      }
+
+      const targetRoomId = updatedData.roomId || classroomId;
+      const targetRoom = classrooms.find((c) => c.id === targetRoomId || c.code === targetRoomId);
+      const roomCode = targetRoom?.code || updatedData.roomCode || '';
+      const roomName = targetRoom?.name || updatedData.roomName || '';
+
+      const isMovingRoom = updatedData.roomId && updatedData.roomId !== classroomId;
+
+      setClassrooms((prev) => {
+        let slotToMove: TimetableSlot | null = null;
+        if (isMovingRoom) {
+          const oldRoom = prev.find((c) => c.id === classroomId || c.code === classroomId);
+          slotToMove = oldRoom?.timetable?.find((s) => s.id === slotId) || null;
+        }
+
+        return prev.map((cr) => {
+          // If slot moved out of old room
+          if (isMovingRoom && (cr.id === classroomId || cr.code === classroomId)) {
+            const updatedSlots = (cr.timetable || []).filter((s) => s.id !== slotId);
+            const updatedRoom = { ...cr, timetable: updatedSlots };
+            supabaseService.saveClassroom(updatedRoom).catch(console.error);
+            dbService.saveClassroom(updatedRoom).catch(console.error);
+            return updatedRoom;
+          }
+          // If slot moved into new room
+          if (isMovingRoom && (cr.id === targetRoomId || cr.code === targetRoomId)) {
+            const merged: TimetableSlot = {
+              ...(slotToMove || {}),
+              ...updatedData,
+              id: slotId,
+              roomId: targetRoomId,
+              roomCode,
+              roomName,
+            } as TimetableSlot;
+            const updatedSlots = [...(cr.timetable || []).filter((s) => s.id !== slotId), merged];
+            const updatedRoom = { ...cr, timetable: updatedSlots };
+            supabaseService.saveClassroom(updatedRoom).catch(console.error);
+            dbService.saveClassroom(updatedRoom).catch(console.error);
+            return updatedRoom;
+          }
+          // Standard update in same room
+          if (!isMovingRoom && (cr.id === classroomId || cr.code === classroomId)) {
+            const currentSlots = cr.timetable || [];
+            const updatedSlots = currentSlots.map((s) =>
+              s.id === slotId ? { ...s, ...updatedData, roomId: classroomId, roomCode, roomName } : s
+            );
+            const updatedRoom = { ...cr, timetable: updatedSlots };
+            supabaseService.saveClassroom(updatedRoom).catch(console.error);
+            dbService.saveClassroom(updatedRoom).catch(console.error);
+            return updatedRoom;
+          }
+          return cr;
+        });
+      });
+
+      // Persist to database collections
+      dbService
+        .saveSchedule({
+          id: slotId,
+          ...updatedData,
+          roomId: targetRoomId,
+          roomCode,
+          roomName,
+        } as TimetableSlot)
+        .catch(console.error);
+
+      addHardwareLog(
+        `smartclass/${targetRoomId}/schedule`,
+        `{"event":"TIMETABLE_UPDATED","slotId":"${slotId}","room":"${roomCode}"}`,
+        'IN',
+        'COMMAND'
+      );
+
+      return { success: true };
+    },
+    [classrooms, addHardwareLog, requirePerm]
+  );
+
+  const deleteTimetableSlot = useCallback(
+    async (classroomId: string, slotId: string): Promise<{ success: boolean; error?: string }> => {
+      if (!requirePerm('CONFIG_SCHEDULE', classroomId)) {
+        return { success: false, error: 'Bạn không có quyền xóa lịch học vụ.' };
+      }
+
+      setClassrooms((prev) =>
+        prev.map((cr) => {
+          if (cr.id !== classroomId && cr.code !== classroomId) return cr;
+          const currentSlots = cr.timetable || [];
+          const updatedSlots = currentSlots.filter((s) => s.id !== slotId);
+          const updatedRoom = { ...cr, timetable: updatedSlots };
+          supabaseService.saveClassroom(updatedRoom).catch(console.error);
+          dbService.saveClassroom(updatedRoom).catch(console.error);
+          return updatedRoom;
+        })
+      );
+
+      dbService.deleteSchedule(slotId).catch(console.error);
+      supabaseService.deleteSchedule(slotId).catch(console.error);
+
+      addHardwareLog(
+        `smartclass/${classroomId}/schedule`,
+        `{"event":"TIMETABLE_DELETED","slotId":"${slotId}"}`,
+        'IN',
+        'COMMAND'
+      );
+
+      return { success: true };
+    },
+    [addHardwareLog, requirePerm]
   );
 
   const loadDemoClassrooms = useCallback(() => {
@@ -583,6 +894,15 @@ export const ClassroomProvider: React.FC<{ children: React.ReactNode }> = ({ chi
           'OUT',
           'COMMAND'
         );
+
+        // Forward to real physical ESP32 board if connected
+        if (esp32HardwareService.getStatus() === 'connected') {
+          const bound = esp32HardwareService.getBoundClassroomId();
+          if (bound === cr.id || bound === cr.code) {
+            const targetDev = cr.devices.find((d) => d.id === deviceId);
+            esp32HardwareService.sendRelayCommand(targetDeviceName, targetDev?.relayPin || 16, nextDeviceState);
+          }
+        }
 
         const updatedClassroom = recalcClassroomElectrics({
           ...cr,
@@ -697,6 +1017,13 @@ export const ClassroomProvider: React.FC<{ children: React.ReactNode }> = ({ chi
           'COMMAND'
         );
 
+        if (esp32HardwareService.getStatus() === 'connected') {
+          const bound = esp32HardwareService.getBoundClassroomId();
+          if (bound === cr.id || bound === cr.code) {
+            esp32HardwareService.sendAllOffCommand();
+          }
+        }
+
         const updatedRoom = recalcClassroomElectrics({
           ...cr,
           devices: turnedOffDevices,
@@ -784,6 +1111,9 @@ export const ClassroomProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       'OUT',
       'COMMAND'
     );
+    if (esp32HardwareService.getStatus() === 'connected') {
+      esp32HardwareService.sendAllOffCommand();
+    }
   }, [addHardwareLog, requirePerm]);
 
   const cancelAutoShutdown = useCallback((classroomId: string) => {
@@ -1018,11 +1348,17 @@ export const ClassroomProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         deleteRoom,
         addDeviceToRoom,
         deleteDeviceFromRoom,
+        addTimetableSlot,
+        updateTimetableSlot,
+        deleteTimetableSlot,
         loadDemoClassrooms,
         toggleHardCutoff,
         authNotice,
         clearAuthNotice,
         isReadOnlySession,
+        isESP32ModalOpen,
+        openESP32Modal,
+        closeESP32Modal,
       }}
     >
       {children}

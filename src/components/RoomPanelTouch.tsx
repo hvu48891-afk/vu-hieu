@@ -110,7 +110,7 @@ export const RoomPanelTouch: React.FC = () => {
           </span>
           {soundEnabled && (
             <span className="flex items-center gap-1 text-slate-400">
-              <Volume2 className="h-3 w-3" /> Hiệu ứng tiếng cơ Relay 220V
+              <Volume2 className="h-3 w-3" /> Hiệu ứng tiếng cơ Relay 24V
             </span>
           )}
         </div>
@@ -145,7 +145,7 @@ export const RoomPanelTouch: React.FC = () => {
           {currentUser?.role === 'STUDENT' && (
             <div className="bg-blue-950/70 border border-blue-600/70 rounded-xl p-3 flex items-center gap-2 text-blue-200 text-xs">
               <ShieldAlert className="h-4 w-4 text-blue-400 shrink-0" />
-              <span><strong>Tài khoản Sinh viên ({currentUser.name}):</strong> Chế độ Chỉ xem dữ liệu. Toàn bộ phím cảm ứng Relay 220V bị vô hiệu hóa để đảm bảo an toàn.</span>
+              <span><strong>Tài khoản Sinh viên ({currentUser.name}):</strong> Chế độ Chỉ xem dữ liệu. Toàn bộ phím cảm ứng Relay 24V bị vô hiệu hóa để đảm bảo an toàn.</span>
             </div>
           )}
           {/* Top Panel Bar: Clock, Room Name, Subject, Environmental Sensors */}
@@ -249,7 +249,7 @@ export const RoomPanelTouch: React.FC = () => {
               <div className="flex items-center justify-between">
                 <h3 className="text-xs uppercase font-bold tracking-wider text-slate-400 flex items-center gap-1.5">
                   <Lightbulb className="h-4 w-4 text-amber-400" />
-                  Cụm Công Tắc Cảm Ứng Chiếu Sáng & Quạt (220V)
+                  Cụm Công Tắc Cảm Ứng Chiếu Sáng & Quạt (24V)
                 </h3>
                 <span className="text-[11px] text-slate-400 font-mono">
                   Công suất: <strong className={room.isHardCutoff || room.totalPowerW === 0 ? 'text-slate-400' : room.devices.some((d) => d.isOn) ? 'text-emerald-400' : 'text-cyan-400'}>{formatWatts(room.totalPowerW)}</strong>
@@ -545,14 +545,14 @@ export const RoomPanelTouch: React.FC = () => {
             </div>
           </div>
 
-          {/* Physical 220V Relays Status Bar (Visual Indicator for hardware contacts) */}
+          {/* Physical 24V Relays Status Bar (Visual Indicator for hardware contacts) */}
           <div className="bg-slate-900/80 rounded-xl p-3 border border-slate-800">
             <div className="flex items-center justify-between text-xs text-slate-400 mb-2">
               <span className="font-semibold uppercase tracking-wider text-[10px]">
-                Trạng Thái Tiếp Điểm Cụm Relay 220V Thực Tế (Hardware Contactors)
+                Trạng Thái Tiếp Điểm Cụm Relay 24V Thực Tế (Hardware Contactors)
               </span>
               <span className="font-mono text-emerald-400">
-                PZEM-004T: {room.voltageV}V · {room.currentA}A · {room.powerFactor} PF
+                Điện áp: {room.voltageV}V · {room.currentA}A · {room.powerFactor} PF
               </span>
             </div>
 
@@ -571,7 +571,7 @@ export const RoomPanelTouch: React.FC = () => {
                     {d.name.split(' ')[0]}
                   </span>
                   <span className="text-[10px] mt-0.5 block">
-                    {d.relayState === 'CLOSED' ? '● 220V ON' : '○ NGẮT'}
+                    {d.relayState === 'CLOSED' ? '● 24V ON' : '○ NGẮT'}
                   </span>
                 </div>
               ))}

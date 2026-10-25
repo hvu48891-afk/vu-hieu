@@ -16,6 +16,12 @@ service cloud.firestore {
       allow write: if true;
     }
 
+    // Academic timetable schedules
+    match /schedules/{scheduleId} {
+      allow read: if true;
+      allow write: if true;
+    }
+
     // User profiles
     match /users/{userId} {
       allow read: if true;

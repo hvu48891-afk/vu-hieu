@@ -271,7 +271,7 @@ CREATE POLICY "Allow all access to devices" ON public.devices FOR ALL USING (tru
                 </span>
               </h3>
               <p className="text-xs text-slate-400">
-                Khởi tạo phòng học kèm hệ thống đo điện PZEM-004T & Relay điều khiển 220V
+                Khởi tạo phòng học kèm hệ thống đo điện & Relay điều khiển 24V
               </p>
             </div>
           </div>
@@ -394,7 +394,7 @@ CREATE POLICY "Allow all access to devices" ON public.devices FOR ALL USING (tru
             <div className="flex items-center justify-between">
               <div>
                 <span className="text-xs font-bold text-slate-300 uppercase tracking-wider block">
-                  2. Cấu Hình Thiết Bị Điện (Relay 220V Contactor)
+                  2. Cấu Hình Thiết Bị Điện (Relay 24V Contactor)
                 </span>
                 <span className="text-[11px] text-slate-400">
                   Chọn các thiết bị được trang bị sẵn trong phòng học này
@@ -403,7 +403,7 @@ CREATE POLICY "Allow all access to devices" ON public.devices FOR ALL USING (tru
               <div className="text-right">
                 <span className="text-[11px] text-slate-400 block">Ước tính tải ban đầu:</span>
                 <span className="text-xs font-mono font-bold text-amber-400">
-                  {totalEstimatedPower} W · ~{(totalEstimatedPower / (220 * 0.96)).toFixed(1)} A
+                  {totalEstimatedPower} W · ~{(totalEstimatedPower / 24).toFixed(1)} A
                 </span>
               </div>
             </div>

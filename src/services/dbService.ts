@@ -10,10 +10,11 @@ import {
 } from 'firebase/firestore';
 import { db, handleFirestoreError, OperationType } from '../lib/firebase';
 import { supabaseService } from './supabaseService';
-import { Classroom, AutomationRule } from '../types';
+import { Classroom, AutomationRule, TimetableSlot } from '../types';
 import { INITIAL_CLASSROOMS, INITIAL_AUTOMATION_RULES } from '../data/mockData';
 
 const CLASSROOMS_COLLECTION = 'classrooms';
+const SCHEDULES_COLLECTION = 'schedules';
 const SETTINGS_COLLECTION = 'settings';
 
 export const dbService = {
@@ -140,6 +141,58 @@ export const dbService = {
       await deleteDoc(doc(db, 'users', userId));
     } catch (error) {
       console.warn('[Firestore] deleteUser warning:', error);
+    }
+  },
+
+  // Lấy toàn bộ người dùng đã đăng ký từ Firestore
+  async fetchUsers(): Promise<any[]> {
+    try {
+      const snap = await getDocs(collection(db, 'users'));
+      const list: any[] = [];
+      snap.forEach((d) => {
+        list.push(d.data());
+      });
+      return list;
+    } catch (err) {
+      console.warn('[Firestore] fetchUsers error:', err);
+      return [];
+    }
+  },
+
+  // Lưu lịch học vụ vào Firestore collection 'schedules'
+  async saveSchedule(slot: TimetableSlot): Promise<void> {
+    const docPath = `${SCHEDULES_COLLECTION}/${slot.id}`;
+    try {
+      await setDoc(doc(db, SCHEDULES_COLLECTION, slot.id), {
+        ...slot,
+        updatedAt: new Date().toISOString(),
+      }, { merge: true });
+    } catch (error) {
+      console.warn('[Firestore] saveSchedule warning:', error);
+    }
+  },
+
+  // Xóa lịch học vụ khỏi Firestore collection 'schedules'
+  async deleteSchedule(slotId: string): Promise<void> {
+    try {
+      await deleteDoc(doc(db, SCHEDULES_COLLECTION, slotId));
+    } catch (error) {
+      console.warn('[Firestore] deleteSchedule warning:', error);
+    }
+  },
+
+  // Lấy toàn bộ lịch học vụ từ Firestore
+  async fetchSchedules(): Promise<TimetableSlot[]> {
+    try {
+      const snap = await getDocs(collection(db, SCHEDULES_COLLECTION));
+      const list: TimetableSlot[] = [];
+      snap.forEach((d) => {
+        list.push(d.data() as TimetableSlot);
+      });
+      return list;
+    } catch (err) {
+      console.warn('[Firestore] fetchSchedules error:', err);
+      return [];
     }
   }
 };

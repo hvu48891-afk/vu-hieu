@@ -23,6 +23,7 @@ import {
   LogIn,
   Lock,
   Trash2,
+  CheckCircle2,
 } from 'lucide-react';
 
 interface RoomDetailModalProps {
@@ -57,9 +58,17 @@ export const RoomDetailModal: React.FC<RoomDetailModalProps> = ({
   // Add device form states
   const [showAddDevModal, setShowAddDevModal] = useState<boolean>(false);
   const [newDevName, setNewDevName] = useState<string>('');
-  const [newDevType, setNewDevType] = useState<DeviceType>('light');
-  const [newDevPower, setNewDevPower] = useState<number>(150);
+  const [newDevBrand, setNewDevBrand] = useState<string>('');
+  const [newDevType, setNewDevType] = useState<DeviceType>('fan');
+  const [newDevPower, setNewDevPower] = useState<number>(55);
+  const [newDevRelayPin, setNewDevRelayPin] = useState<string>('');
+  const [newDevIsOn, setNewDevIsOn] = useState<boolean>(false);
   const [isSubmittingDev, setIsSubmittingDev] = useState<boolean>(false);
+
+  // Delete device confirmation state
+  const [deviceToDelete, setDeviceToDelete] = useState<Device | null>(null);
+  const [isDeletingDev, setIsDeletingDev] = useState<boolean>(false);
+  const [devActionMsg, setDevActionMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
   const checkAllowed = (): boolean => {
     if (!currentUser) {
@@ -68,7 +77,7 @@ export const RoomDetailModal: React.FC<RoomDetailModalProps> = ({
       return false;
     }
     if (currentUser.role === 'STUDENT') {
-      setDeniedMsg('Tài khoản Sinh viên ở chế độ Chỉ xem. Quyền đóng/ngắt thiết bị Relay 220V và Aptomat bị khóa!');
+      setDeniedMsg('Tài khoản Sinh viên ở chế độ Chỉ xem. Quyền đóng/ngắt thiết bị Relay 24V và Aptomat bị khóa!');
       return false;
     }
     if (!perm.allowed) {
@@ -221,7 +230,7 @@ export const RoomDetailModal: React.FC<RoomDetailModalProps> = ({
                   Phòng đã trống {classroom.vacantDurationMinutes} phút. Cảm biến PIR ghi nhận 0 chuyển động.
                   {classroom.autoShutdownRemainingSec !== null && (
                     <span className="font-bold text-amber-300 ml-1">
-                      Hệ thống sẽ tự động ngắt relay 220V sau {classroom.autoShutdownRemainingSec}s!
+                      Hệ thống sẽ tự động ngắt relay 24V sau {classroom.autoShutdownRemainingSec}s!
                     </span>
                   )}
                 </p>
@@ -246,16 +255,16 @@ export const RoomDetailModal: React.FC<RoomDetailModalProps> = ({
 
         {/* Body Content */}
         <div className="p-5 overflow-y-auto space-y-5">
-          {/* Real-time Electrical & Environmental Gauges (PZEM-004T & Sensors) */}
+          {/* Real-time Electrical & Environmental Gauges */}
           <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-2.5">
             {/* Voltage */}
             <div className="bg-slate-800/60 border border-slate-700/60 rounded-lg p-2.5">
-              <span className="text-[10px] text-slate-400 block font-medium uppercase">Điện áp lưới (V)</span>
+              <span className="text-[10px] text-slate-400 block font-medium uppercase">Điện áp (V)</span>
               <div className="mt-1 flex items-baseline gap-1">
                 <span className="text-lg font-bold font-mono text-white">
                   {classroom.voltageV}
                 </span>
-                <span className="text-[11px] text-slate-400">VAC</span>
+                <span className="text-[11px] text-slate-400">V</span>
               </div>
               <span className="text-[10px] text-emerald-400 flex items-center gap-1 mt-0.5">
                 <ShieldCheck className="h-2.5 w-2.5" /> 50.0 Hz
@@ -392,8 +401,8 @@ export const RoomDetailModal: React.FC<RoomDetailModalProps> = ({
                     </h5>
                     <p className="text-[11px] text-slate-400 mt-1 leading-relaxed">
                       {classroom.isHardCutoff
-                        ? 'Toàn bộ nguồn điện 220V cấp vào phòng đã được ngắt hoàn toàn. Cảm biến PZEM-004T ghi nhận công suất và dòng điện bằng 0.0.'
-                        : 'Các tiếp điểm Relay 220V cho Đèn, Quạt, Máy lạnh đã NGẮT 100%. Mức ~6.5W (dòng 0.03A) còn lại chính là Nguồn Chờ Tĩnh (Standby Power) tiêu thụ bởi bộ nguồn xung 220V/5V nuôi vi điều khiển ESP32, module PZEM-004T và cảm biến PIR để duy trì kết nối mạng WiFi/MQTT và nhận lệnh điều khiển từ xa.'}
+                        ? 'Toàn bộ nguồn điện 24V cấp vào phòng đã được ngắt hoàn toàn. Cảm biến đo điện ghi nhận công suất và dòng điện bằng 0.0.'
+                        : 'Các tiếp điểm Relay 24V cho Đèn, Quạt, Máy lạnh đã NGẮT 100%. Mức ~6.5W (dòng 0.27A) còn lại chính là Nguồn Chờ Tĩnh (Standby Power) tiêu thụ bởi bộ nguồn nuôi vi điều khiển ESP32 và cảm biến PIR để duy trì kết nối mạng WiFi/MQTT và nhận lệnh điều khiển từ xa.'}
                     </p>
                   </div>
                 </div>
@@ -415,11 +424,11 @@ export const RoomDetailModal: React.FC<RoomDetailModalProps> = ({
             </div>
           )}
 
-          {/* Connected 220V Devices Control List */}
+          {/* Connected 24V Devices Control List */}
           <div>
             <div className="flex items-center justify-between mb-3">
               <h4 className="text-xs font-semibold uppercase tracking-wider text-slate-400">
-                Danh Sách Thiết Bị & Tiếp Điểm Relay 220V
+                Danh Sách Thiết Bị & Tiếp Điểm Relay 24V
               </h4>
               <div className="flex items-center gap-2.5">
                 <span className="text-xs text-slate-400 font-mono">
@@ -472,7 +481,7 @@ export const RoomDetailModal: React.FC<RoomDetailModalProps> = ({
                                   : 'bg-slate-800 text-slate-400 border border-slate-700'
                               }`}
                             >
-                              {device.relayState === 'CLOSED' ? 'RELAY ĐÓNG (220V)' : 'RELAY NGẮT'}
+                              {device.relayState === 'CLOSED' ? 'RELAY ĐÓNG (24V)' : 'RELAY NGẮT'}
                             </span>
                           </div>
                           {device.brandModel && (
@@ -485,7 +494,7 @@ export const RoomDetailModal: React.FC<RoomDetailModalProps> = ({
                               {device.relayPin}
                             </span>
                             <span>·</span>
-                            <span>Định mức: {device.powerRatingW}W ({device.nominalCurrentA || (device.powerRatingW / 220).toFixed(1)}A)</span>
+                            <span>Định mức: {device.powerRatingW}W ({device.nominalCurrentA || (device.powerRatingW / 24).toFixed(1)}A)</span>
                             <span>·</span>
                             <span className="font-mono text-amber-300 font-medium">
                               Thực tế: {device.currentPowerW}W
@@ -510,13 +519,10 @@ export const RoomDetailModal: React.FC<RoomDetailModalProps> = ({
 
                         {currentUser && currentUser.role !== 'STUDENT' && (
                           <button
-                            onClick={async () => {
-                              if (window.confirm(`Xóa thiết bị "${device.name}" khỏi phòng ${classroom.name}?`)) {
-                                await deleteDeviceFromRoom(classroom.id, device.id);
-                              }
-                            }}
-                            className="p-1.5 text-slate-500 hover:text-rose-400 rounded hover:bg-slate-800 transition-colors"
-                            title="Xóa thiết bị khỏi database"
+                            type="button"
+                            onClick={() => setDeviceToDelete(device)}
+                            className="p-1.5 text-slate-400 hover:text-rose-400 rounded-lg hover:bg-rose-950/40 border border-transparent hover:border-rose-800/60 transition-colors"
+                            title="Xóa thiết bị này khỏi phòng học & Database"
                           >
                             <Trash2 className="h-3.5 w-3.5" />
                           </button>
@@ -685,16 +691,52 @@ export const RoomDetailModal: React.FC<RoomDetailModalProps> = ({
         </div>
       </div>
 
-      {/* Modal: Thêm Thiết Bị Vào Phòng */}
+      {/* Toast Notification for Device Actions */}
+      {devActionMsg && (
+        <div
+          className={`fixed top-5 right-5 z-70 px-4 py-3 rounded-xl border text-xs shadow-2xl flex items-center gap-2.5 animate-fadeIn ${
+            devActionMsg.type === 'success'
+              ? 'bg-emerald-950/95 border-emerald-500 text-emerald-200'
+              : 'bg-rose-950/95 border-rose-500 text-rose-200'
+          }`}
+        >
+          {devActionMsg.type === 'success' ? (
+            <CheckCircle2 className="h-4 w-4 text-emerald-400 shrink-0" />
+          ) : (
+            <AlertTriangle className="h-4 w-4 text-rose-400 shrink-0" />
+          )}
+          <span className="font-medium">{devActionMsg.text}</span>
+          <button
+            onClick={() => setDevActionMsg(null)}
+            className="ml-2 text-slate-400 hover:text-white"
+          >
+            <X className="h-3.5 w-3.5" />
+          </button>
+        </div>
+      )}
+
+      {/* Modal: Thêm Thiết Bị Mới Vào Phòng & Database */}
       {showAddDevModal && (
         <div className="fixed inset-0 z-60 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-slate-900 border border-slate-750 rounded-2xl shadow-2xl w-full max-w-md p-6 text-slate-100 space-y-4 animate-scaleUp">
+          <div className="bg-slate-900 border border-slate-700 rounded-2xl shadow-2xl w-full max-w-lg p-6 text-slate-100 space-y-4 animate-scaleUp">
             <div className="flex items-center justify-between pb-3 border-b border-slate-800">
-              <h4 className="font-bold text-white text-sm flex items-center gap-2">
-                <Plus className="h-4 w-4 text-cyan-400" />
-                Thêm Thiết Bị Vào Phòng {classroom.name}
-              </h4>
-              <button onClick={() => setShowAddDevModal(false)} className="text-slate-400 hover:text-white">
+              <div className="flex items-center gap-2.5">
+                <div className="h-8 w-8 rounded-lg bg-cyan-500/10 border border-cyan-500/30 flex items-center justify-center text-cyan-400 font-bold">
+                  <Plus className="h-4 w-4" />
+                </div>
+                <div>
+                  <h4 className="font-bold text-white text-sm">
+                    Thêm Thiết Bị Vào Phòng {classroom.name}
+                  </h4>
+                  <p className="text-[11px] text-slate-400">
+                    Lưu trực tiếp vào Cloud Database & Điều khiển qua Relay 24V
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowAddDevModal(false)}
+                className="text-slate-400 hover:text-white p-1 rounded-lg hover:bg-slate-800"
+              >
                 <X className="h-5 w-5" />
               </button>
             </div>
@@ -706,82 +748,235 @@ export const RoomDetailModal: React.FC<RoomDetailModalProps> = ({
                 setIsSubmittingDev(true);
                 const res = await addDeviceToRoom(classroom.id, {
                   name: newDevName.trim(),
+                  brandModel: newDevBrand.trim() || undefined,
                   type: newDevType,
-                  powerRatingW: Number(newDevPower) || 100,
+                  powerRatingW: Number(newDevPower) || 55,
+                  relayPin: newDevRelayPin.trim() || undefined,
+                  isOn: newDevIsOn,
                 });
                 setIsSubmittingDev(false);
                 if (res.success) {
                   setShowAddDevModal(false);
                   setNewDevName('');
+                  setNewDevBrand('');
+                  setNewDevRelayPin('');
+                  setDevActionMsg({
+                    type: 'success',
+                    text: `Đã thêm thành công thiết bị vào phòng ${classroom.name} và lưu lên Database!`,
+                  });
+                  setTimeout(() => setDevActionMsg(null), 4000);
                 } else {
-                  setDeniedMsg(res.error || 'Lỗi thêm thiết bị.');
+                  setDevActionMsg({
+                    type: 'error',
+                    text: res.error || 'Lỗi khi lưu thiết bị vào database.',
+                  });
                 }
               }}
               className="space-y-3.5"
             >
               <div>
                 <label className="block text-xs font-semibold text-slate-300 mb-1">
-                  Tên Thiết Bị (device_name) <span className="text-rose-400">*</span>
+                  Tên Thiết Bị <span className="text-rose-400">*</span>
                 </label>
                 <input
                   type="text"
                   value={newDevName}
                   onChange={(e) => setNewDevName(e.target.value)}
-                  placeholder="Ví dụ: Đèn LED Tuýp Rạng Đông 18W"
+                  placeholder="Ví dụ: Quạt treo tường vách sau, Đèn LED chiếu sáng, v.v."
                   className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-cyan-500"
                   required
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-semibold text-slate-300 mb-1">
-                    Loại (device_type)
+                    Loại Thiết Bị
                   </label>
                   <select
                     value={newDevType}
-                    onChange={(e) => setNewDevType(e.target.value as DeviceType)}
+                    onChange={(e) => {
+                      const t = e.target.value as DeviceType;
+                      setNewDevType(t);
+                      if (t === 'fan') setNewDevPower(55);
+                      else if (t === 'light') setNewDevPower(76);
+                      else if (t === 'ac') setNewDevPower(1850);
+                      else if (t === 'projector') setNewDevPower(320);
+                      else setNewDevPower(100);
+                    }}
                     className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-cyan-500"
                   >
-                    <option value="light">Chiếu Sáng (Light)</option>
-                    <option value="ac">Điều Hòa (AC)</option>
-                    <option value="fan">Quạt Trần (Fan)</option>
-                    <option value="projector">Máy Chiếu (Projector)</option>
-                    <option value="aux">Ổ Cắm Phụ (Aux)</option>
+                    <option value="fan">Quạt Treo Tường / Quạt Đảo (Fan - 55W)</option>
+                    <option value="light">Hệ Thống Đèn Chiếu Sáng (Light - 76W)</option>
+                    <option value="ac">Điều Hòa Không Khí (AC Inverter - 1850W)</option>
+                    <option value="projector">Máy Chiếu Giảng Đường (Projector - 320W)</option>
+                    <option value="aux">Ổ Cắm Phụ / Thiết Bị Khác (Aux)</option>
                   </select>
                 </div>
 
                 <div>
                   <label className="block text-xs font-semibold text-slate-300 mb-1">
-                    Công Suất (W)
+                    Công Suất Định Mức (W)
                   </label>
                   <input
                     type="number"
                     value={newDevPower}
                     onChange={(e) => setNewDevPower(Number(e.target.value))}
+                    min={1}
                     className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-cyan-500 font-mono"
                     required
                   />
                 </div>
               </div>
 
-              <div className="pt-2 flex justify-end gap-2">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 mb-1">
+                    Hãng Sản Xuất / Model
+                  </label>
+                  <input
+                    type="text"
+                    value={newDevBrand}
+                    onChange={(e) => setNewDevBrand(e.target.value)}
+                    placeholder="Vinawind QTT-400X, Rạng Đông, Daikin, ..."
+                    className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-cyan-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 mb-1">
+                    Chân Relay Điều Khiển (ESP32)
+                  </label>
+                  <input
+                    type="text"
+                    value={newDevRelayPin}
+                    onChange={(e) => setNewDevRelayPin(e.target.value)}
+                    placeholder="Mặc định: GPIO 25 (Relay 24V)"
+                    className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-cyan-500 font-mono"
+                  />
+                </div>
+              </div>
+
+              <div className="p-3 rounded-xl bg-slate-950/80 border border-slate-800 flex items-center justify-between">
+                <div>
+                  <span className="text-xs font-semibold text-white block">Trạng thái khởi tạo:</span>
+                  <span className="text-[11px] text-slate-400 block">
+                    {newDevIsOn ? 'Đóng tiếp điểm Relay 24V ngay khi tạo' : 'Ngắt tiếp điểm Relay 24V (Mặc định)'}
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setNewDevIsOn(!newDevIsOn)}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-colors ${
+                    newDevIsOn
+                      ? 'bg-emerald-600 text-white'
+                      : 'bg-slate-800 text-slate-400 hover:text-white'
+                  }`}
+                >
+                  {newDevIsOn ? 'BẬT (24V ON)' : 'TẮT (NGẮT)'}
+                </button>
+              </div>
+
+              <div className="pt-2 flex justify-end gap-2.5">
                 <button
                   type="button"
                   onClick={() => setShowAddDevModal(false)}
-                  className="px-3.5 py-2 text-xs rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300"
+                  className="px-4 py-2 text-xs rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 transition-colors"
                 >
                   Hủy
                 </button>
                 <button
                   type="submit"
                   disabled={isSubmittingDev}
-                  className="px-4 py-2 text-xs font-bold rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white shadow-md shadow-cyan-950 disabled:opacity-50"
+                  className="px-5 py-2 text-xs font-bold rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white shadow-lg shadow-cyan-950/50 disabled:opacity-50 transition-colors flex items-center gap-1.5"
                 >
-                  {isSubmittingDev ? 'Đang lưu...' : 'Thêm Vào Database'}
+                  <Plus className="h-3.5 w-3.5" />
+                  <span>{isSubmittingDev ? 'Đang lưu database...' : 'Thêm Vào Database'}</span>
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal: Xác Nhận Xóa Thiết Bị Khỏi Database */}
+      {deviceToDelete && (
+        <div className="fixed inset-0 z-60 bg-slate-950/85 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-slate-900 border border-rose-900/60 rounded-2xl shadow-2xl w-full max-w-md p-6 text-slate-100 space-y-4 animate-scaleUp">
+            <div className="flex items-center gap-3 pb-3 border-b border-slate-800">
+              <div className="h-10 w-10 rounded-xl bg-rose-500/10 border border-rose-500/30 flex items-center justify-center text-rose-400 font-bold shrink-0">
+                <Trash2 className="h-5 w-5" />
+              </div>
+              <div>
+                <h4 className="font-bold text-white text-base">Xác Nhận Xóa Thiết Bị</h4>
+                <p className="text-xs text-rose-400">Thao tác cập nhật trực tiếp lên cơ sở dữ liệu</p>
+              </div>
+            </div>
+
+            <div className="p-3.5 rounded-xl bg-slate-950/80 border border-slate-800 text-xs space-y-1.5">
+              <div className="flex justify-between">
+                <span className="text-slate-400">Thiết bị:</span>
+                <span className="font-bold text-white">{deviceToDelete.name}</span>
+              </div>
+              {deviceToDelete.brandModel && (
+                <div className="flex justify-between">
+                  <span className="text-slate-400">Model:</span>
+                  <span className="text-emerald-400 font-mono">{deviceToDelete.brandModel}</span>
+                </div>
+              )}
+              <div className="flex justify-between">
+                <span className="text-slate-400">Phòng học:</span>
+                <span className="text-white">{classroom.name} ({classroom.code})</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-400">Công suất & Relay:</span>
+                <span className="text-amber-400 font-mono">
+                  {deviceToDelete.powerRatingW}W · {deviceToDelete.relayPin}
+                </span>
+              </div>
+            </div>
+
+            <p className="text-xs text-slate-400 leading-relaxed">
+              Bạn có chắc chắn muốn xóa thiết bị này khỏi phòng học? Hệ thống sẽ cập nhật tải điện và giải phóng tiếp điểm relay 24V trên Cloud Database.
+            </p>
+
+            <div className="pt-2 flex justify-end gap-2.5">
+              <button
+                type="button"
+                disabled={isDeletingDev}
+                onClick={() => setDeviceToDelete(null)}
+                className="px-4 py-2 text-xs rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 transition-colors"
+              >
+                Hủy
+              </button>
+              <button
+                type="button"
+                disabled={isDeletingDev}
+                onClick={async () => {
+                  setIsDeletingDev(true);
+                  const res = await deleteDeviceFromRoom(classroom.id, deviceToDelete.id);
+                  setIsDeletingDev(false);
+                  if (res.success) {
+                    const devName = deviceToDelete.name;
+                    setDeviceToDelete(null);
+                    setDevActionMsg({
+                      type: 'success',
+                      text: `Đã xóa thiết bị "${devName}" khỏi phòng ${classroom.name} và database thành công!`,
+                    });
+                    setTimeout(() => setDevActionMsg(null), 4000);
+                  } else {
+                    setDevActionMsg({
+                      type: 'error',
+                      text: res.error || 'Không thể xóa thiết bị khỏi database.',
+                    });
+                  }
+                }}
+                className="px-4 py-2 text-xs font-bold rounded-xl bg-rose-600 hover:bg-rose-500 text-white shadow-lg shadow-rose-950/60 disabled:opacity-50 transition-colors flex items-center gap-1.5"
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+                <span>{isDeletingDev ? 'Đang xóa...' : 'Xác Nhận Xóa Khỏi Database'}</span>
+              </button>
+            </div>
           </div>
         </div>
       )}

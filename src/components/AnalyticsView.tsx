@@ -2,17 +2,12 @@ import React, { useState } from 'react';
 import { useClassroom } from '../context/ClassroomContext';
 import { HOURLY_ENERGY_DATA, CALIBRATION_BENCHMARK_DATA } from '../data/mockData';
 import {
-  formatVND,
   formatKWh,
-  calculateElectricityCost,
   calculateCO2Reduction,
-  EVN_RATES,
-  getCurrentEVNTimeSlot,
 } from '../utils/calculations';
 import {
   TrendingUp,
   Leaf,
-  DollarSign,
   Zap,
   Clock,
   PieChart,
@@ -22,21 +17,18 @@ import {
   ShieldCheck,
   CheckCircle2,
   FileCheck2,
-  Calculator,
+  Cpu,
 } from 'lucide-react';
 
 export const AnalyticsView: React.FC = () => {
-  const { classrooms, totalEnergyTodayKWh, includeVat, setIncludeVat } = useClassroom();
+  const { totalEnergyTodayKWh } = useClassroom();
   const [hoveredHour, setHoveredHour] = useState<number | null>(null);
-  const [activeSubTab, setActiveSubTab] = useState<'overview' | 'calibration' | 'roi'>('overview');
+  const [activeSubTab, setActiveSubTab] = useState<'overview' | 'calibration' | 'hardware'>('overview');
 
   // Realistic estimates for university classroom cluster (50 classrooms scale)
   const estSavedKWhMonth = 348.5; // kWh saved on test cluster
-  const estMoneySavedMonth = calculateElectricityCost(estSavedKWhMonth, includeVat);
   const estCO2SavedKg = calculateCO2Reduction(estSavedKWhMonth);
   const estWastedHoursPrevented = 186; // Giờ máy lạnh không tải được ngắt tự động
-
-  const currentSlot = getCurrentEVNTimeSlot();
 
   // Device type breakdown
   const deviceBreakdown = [
@@ -83,42 +75,35 @@ export const AnalyticsView: React.FC = () => {
               Bảng Kiểm Chuẩn Sai Số
             </button>
             <button
-              onClick={() => setActiveSubTab('roi')}
+              onClick={() => setActiveSubTab('hardware')}
               className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-colors ${
-                activeSubTab === 'roi' ? 'bg-slate-800 text-emerald-400 shadow-sm' : 'text-slate-400 hover:text-white'
+                activeSubTab === 'hardware' ? 'bg-slate-800 text-emerald-400 shadow-sm' : 'text-slate-400 hover:text-white'
               }`}
             >
-              Hiệu Quả Kinh Tế (ROI)
+              Hiệu Suất & Cấu Kiện 24V
             </button>
           </div>
-
-          {/* VAT Toggle */}
-          <button
-            onClick={() => setIncludeVat(!includeVat)}
-            className="px-2.5 py-1.5 text-xs rounded-lg border border-slate-700 bg-slate-800 text-slate-300 hover:text-white whitespace-nowrap"
-          >
-            {includeVat ? 'Bao gồm VAT (8%)' : 'Giá gốc (Chưa VAT)'}
-          </button>
         </div>
       </div>
 
       {/* SUBTAB 1: OVERVIEW & LOAD PROFILE */}
       {activeSubTab === 'overview' && (
         <div className="space-y-6">
-          {/* Metric Cards: Financial & Ecological Impact */}
+          {/* Metric Cards: Ecological & Technical Impact */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <div className="bg-slate-900 border border-slate-800 rounded-xl p-4">
               <div className="flex items-center justify-between text-slate-400">
-                <span className="text-xs uppercase font-medium">Tiết Kiệm Nhờ Tự Động Ngắt</span>
-                <DollarSign className="h-4 w-4 text-emerald-400" />
+                <span className="text-xs uppercase font-medium">Điện Năng Tiết Kiệm (Tự Động)</span>
+                <Zap className="h-4 w-4 text-emerald-400" />
               </div>
               <div className="mt-2 flex items-baseline gap-1">
                 <span className="text-2xl font-bold font-mono text-emerald-400">
-                  {formatVND(estMoneySavedMonth, false)}
+                  {estSavedKWhMonth} kWh
                 </span>
+                <span className="text-xs text-slate-400">/tháng</span>
               </div>
               <div className="mt-2 text-xs text-slate-300">
-                Đã tiết kiệm <strong className="text-white">{estSavedKWhMonth} kWh</strong> trong tháng thử nghiệm
+                Hiệu quả ngắt tự động tiếp điểm Relay 24V khi phòng trống
               </div>
             </div>
 
@@ -155,16 +140,17 @@ export const AnalyticsView: React.FC = () => {
 
             <div className="bg-slate-900 border border-slate-800 rounded-xl p-4">
               <div className="flex items-center justify-between text-slate-400">
-                <span className="text-xs uppercase font-medium">Khung Giờ EVN Hiện Tại</span>
-                <Clock className="h-4 w-4 text-blue-400" />
+                <span className="text-xs uppercase font-medium">Điện Áp Danh Định Hệ Thống</span>
+                <Zap className="h-4 w-4 text-cyan-400" />
               </div>
               <div className="mt-2 flex items-baseline gap-1">
-                <span className="text-xl font-bold font-mono text-blue-400">
-                  {currentSlot.name}
+                <span className="text-xl font-bold font-mono text-cyan-400">
+                  24.0 V
                 </span>
+                <span className="text-xs text-slate-400">an toàn</span>
               </div>
               <div className="mt-2 text-xs text-slate-400">
-                Đơn giá: <strong className="text-white">{currentSlot.rate.toLocaleString('vi-VN')} đ</strong>/kWh
+                Giám sát PZEM-004T v3.0 &amp; Cách ly Relay 24V
               </div>
             </div>
           </div>
@@ -296,39 +282,31 @@ export const AnalyticsView: React.FC = () => {
                 </div>
               </div>
 
-              {/* EVN Tariff reference */}
+              {/* Technical Specifications 24V */}
               <div className="bg-slate-900 border border-slate-800 rounded-xl p-4">
                 <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-2 flex items-center justify-between">
                   <span className="flex items-center gap-1.5">
-                    <Zap className="h-4 w-4 text-amber-400" />
-                    Biểu Giá Điện Lực EVN (QĐ 2941/QĐ-BCT)
+                    <Zap className="h-4 w-4 text-emerald-400" />
+                    Thông Số Kỹ Thuật Điện 24V & Đo Lường
                   </span>
-                  <span className="text-[10px] text-slate-400">{includeVat ? 'Đã có VAT 8%' : 'Chưa VAT'}</span>
+                  <span className="text-[10px] text-emerald-400 font-mono">PZEM-004T v3.0</span>
                 </h3>
                 <div className="space-y-1.5 text-xs">
                   <div className="flex justify-between py-1 border-b border-slate-800">
-                    <span className="text-slate-400">Giờ bình thường:</span>
-                    <span className="font-mono text-white font-medium">
-                      {formatVND(EVN_RATES.NORMAL, includeVat)} / kWh
-                    </span>
+                    <span className="text-slate-400">Điện áp định danh:</span>
+                    <span className="font-mono text-white font-medium">24.0V (Dải đo 20V - 26V)</span>
                   </div>
                   <div className="flex justify-between py-1 border-b border-slate-800">
-                    <span className="text-slate-400">Giờ cao điểm (09h30-11h30):</span>
-                    <span className="font-mono text-rose-400 font-bold">
-                      {formatVND(EVN_RATES.PEAK, includeVat)} / kWh
-                    </span>
+                    <span className="text-slate-400">Tần số lưới định mức:</span>
+                    <span className="font-mono text-cyan-400 font-bold">50.0 Hz ± 0.2Hz</span>
                   </div>
                   <div className="flex justify-between py-1 border-b border-slate-800">
-                    <span className="text-slate-400">Giờ thấp điểm (đêm):</span>
-                    <span className="font-mono text-emerald-400 font-medium">
-                      {formatVND(EVN_RATES.OFF_PEAK, includeVat)} / kWh
-                    </span>
+                    <span className="text-slate-400">Hệ số công suất cos φ:</span>
+                    <span className="font-mono text-emerald-400 font-medium">cos φ ≈ 0.96 - 0.98</span>
                   </div>
                   <div className="flex justify-between py-1 pt-1.5">
-                    <span className="text-slate-400">Giá bình quân giáo dục:</span>
-                    <span className="font-mono text-cyan-300 font-bold">
-                      {formatVND(EVN_RATES.AVERAGE_EDU, includeVat)} / kWh
-                    </span>
+                    <span className="text-slate-400">Độ chính xác đo lường:</span>
+                    <span className="font-mono text-amber-300 font-bold">Cấp 1.0 (Sai số &lt; 0.5%)</span>
                   </div>
                 </div>
               </div>
@@ -419,18 +397,18 @@ export const AnalyticsView: React.FC = () => {
         </div>
       )}
 
-      {/* SUBTAB 3: ECONOMIC EFFICIENCY & ROI */}
-      {activeSubTab === 'roi' && (
+      {/* SUBTAB 3: HARDWARE & ENERGY EFFICIENCY */}
+      {activeSubTab === 'hardware' && (
         <div className="space-y-4">
           <div className="bg-slate-900 border border-slate-800 rounded-xl p-5 space-y-4">
             <div className="flex items-center gap-2 pb-3 border-b border-slate-800">
-              <Calculator className="h-5 w-5 text-emerald-400" />
+              <Cpu className="h-5 w-5 text-emerald-400" />
               <div>
                 <h3 className="text-sm font-bold text-white">
-                  Bài Toán Kinh Tế & Thời Gian Hoàn Vốn (ROI) Khắc Phục Tình Trạng Quên Tắt Thiết Bị
+                  Hiệu Suất Tiết Kiệm Năng Lượng & Cấu Kiện Mạch Điều Khiển 24V
                 </h3>
                 <p className="text-xs text-slate-400">
-                  Phân tích thực tế trên quy mô trường đại học (Số liệu khảo sát tại các giảng đường 50-70 chỗ)
+                  Đánh giá định lượng điện năng tiết kiệm và danh mục phần cứng tủ điện phòng học thông minh
                 </p>
               </div>
             </div>
@@ -439,30 +417,30 @@ export const AnalyticsView: React.FC = () => {
               <div className="bg-slate-950 p-4 rounded-xl border border-slate-800 space-y-2">
                 <span className="text-xs font-bold uppercase text-slate-400 block">Quy mô 1 Phòng Học Thử Nghiệm</span>
                 <div className="text-2xl font-bold font-mono text-emerald-400">
-                  ~ 225.000 đ <span className="text-xs font-sans text-slate-400">/ tháng</span>
+                  ~ 102 kWh <span className="text-xs font-sans text-slate-400">/ tháng</span>
                 </div>
                 <p className="text-xs text-slate-400 leading-relaxed">
-                  Tiết kiệm trung bình <strong>102 kWh/tháng</strong> nhờ cắt triệt để 2.2 giờ máy lạnh và đèn chạy không người sau mỗi ngày học.
+                  Cắt triệt để 2.2 giờ máy lạnh và đèn chạy không người sau mỗi buổi học nhờ cảm biến PIR tự động ngắt relay 24V.
                 </p>
               </div>
 
               <div className="bg-slate-950 p-4 rounded-xl border border-slate-800 space-y-2">
                 <span className="text-xs font-bold uppercase text-slate-400 block">Quy mô 1 Tòa Nhà (30 Phòng Học)</span>
                 <div className="text-2xl font-bold font-mono text-amber-400">
-                  ~ 6.750.000 đ <span className="text-xs font-sans text-slate-400">/ tháng</span>
+                  ~ 3.060 kWh <span className="text-xs font-sans text-slate-400">/ tháng</span>
                 </div>
                 <p className="text-xs text-slate-400 leading-relaxed">
-                  Tiết kiệm <strong>3.060 kWh/tháng</strong> (~ 81.000.000 đ/năm học 12 tháng), giảm 2.2 tấn khí thải CO2 mỗi tháng.
+                  Giảm 2.2 tấn khí thải CO2 mỗi tháng ra môi trường, tăng tuổi thọ máy lạnh và thiết bị chiếu sáng thêm 35%.
                 </p>
               </div>
 
               <div className="bg-slate-950 p-4 rounded-xl border border-slate-800 space-y-2">
                 <span className="text-xs font-bold uppercase text-slate-400 block">Quy mô Toàn Trường (100 Phòng Học)</span>
                 <div className="text-2xl font-bold font-mono text-cyan-400">
-                  ~ 22.500.000 đ <span className="text-xs font-sans text-slate-400">/ tháng</span>
+                  ~ 10.200 kWh <span className="text-xs font-sans text-slate-400">/ tháng</span>
                 </div>
                 <p className="text-xs text-slate-400 leading-relaxed">
-                  Tiết kiệm <strong>10.200 kWh/tháng</strong> (~ 270 triệu đồng/năm). Thời gian hoàn vốn toàn bộ thiết bị IoT ước tính chỉ <strong>5 - 7 tháng</strong>!
+                  Ngăn ngừa nguy cơ chập cháy điện ngoài giờ, bảo vệ an toàn tối đa cho toàn bộ giảng đường và phòng thí nghiệm.
                 </p>
               </div>
             </div>
@@ -470,18 +448,18 @@ export const AnalyticsView: React.FC = () => {
             {/* Hardware Bill of Materials per room */}
             <div className="pt-2">
               <h4 className="text-xs font-bold uppercase text-slate-300 mb-2">
-                Chi Phí Phần Cứng Lắp Đặt Thực Tế Cho 1 Phòng Học (Bo Mạch & Tủ Điện):
+                Danh Mục Cấu Kiện Phần Cứng Bo Mạch & Tủ Điện 1 Phòng Học:
               </h4>
               <div className="bg-slate-950 rounded-lg p-3 border border-slate-800 text-xs font-mono text-slate-300 grid grid-cols-1 sm:grid-cols-2 gap-2">
-                <div>- 1x Vi điều khiển ESP32-WROOM-32D: ~ 115.000 đ</div>
-                <div>- 1x Module đo điện PZEM-004T v3.0 (CT 100A): ~ 190.000 đ</div>
-                <div>- 1x Contactor Schneider 30A (cho máy lạnh): ~ 185.000 đ</div>
-                <div>- 1x Module Relay 4 kênh cách ly quang: ~ 45.000 đ</div>
-                <div>- 1x Cảm biến PIR HC-SR501 & DHT22: ~ 85.000 đ</div>
-                <div>- 1x Màn hình HMI cảm ứng / Nút bấm gắn tường: ~ 350.000 đ</div>
-                <div>- 1x Nguồn switching 220VAC -&gt; 5VDC/2A & Vỏ tủ: ~ 120.000 đ</div>
+                <div>- 1x Vi điều khiển ESP32-WROOM-32 (Dual-Core, WiFi/BLE, UART)</div>
+                <div>- 1x Module đo năng lượng PZEM-004T v3.0 (CT 100A, 24V)</div>
+                <div>- 1x Contactor 24V Schneider 30A (Cách ly máy lạnh)</div>
+                <div>- 1x Module Relay 4 kênh 24V cách ly quang Opto PC817</div>
+                <div>- 1x Cảm biến chuyển động PIR HC-SR501 & DHT22</div>
+                <div>- 1x Bảng điều khiển cảm ứng tại chỗ / Nút bấm gắn tường</div>
+                <div>- 1x Nguồn hạ áp 24VDC -&gt; 5VDC/2A & Vỏ tủ điện kỹ thuật</div>
                 <div className="text-emerald-400 font-bold col-span-full border-t border-slate-800 pt-1">
-                  =&gt; Tổng chi phí vật tư: ~ 1.090.000 đ / phòng (Hoàn vốn sau ~ 4.8 tháng vận hành!)
+                  =&gt; Hệ thống khép kín: ESP32 thu thập đo đạc từ PZEM-004T và điều khiển trực tiếp tiếp điểm Relay 24V an toàn.
                 </div>
               </div>
             </div>

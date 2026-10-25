@@ -48,6 +48,58 @@ function createDefaultRoomDevices(roomId: string, code: string): Device[] {
       fanSpeed: 2,
     },
     {
+      id: `dev-${roomId}-wfan-1`,
+      name: `Quạt Treo Tường 1 (Vách Trái - Trước) (${code})`,
+      brandModel: 'Vinawind QTT-400X 55W',
+      type: 'fan',
+      isOn: true,
+      powerRatingW: 55,
+      currentPowerW: 45,
+      nominalCurrentA: 0.25,
+      relayPin: 'GPIO 25 (Relay 24V)',
+      relayState: 'CLOSED',
+      fanSpeed: 2,
+    },
+    {
+      id: `dev-${roomId}-wfan-2`,
+      name: `Quạt Treo Tường 2 (Vách Phải - Trước) (${code})`,
+      brandModel: 'Vinawind QTT-400X 55W',
+      type: 'fan',
+      isOn: true,
+      powerRatingW: 55,
+      currentPowerW: 45,
+      nominalCurrentA: 0.25,
+      relayPin: 'GPIO 26 (Relay 24V)',
+      relayState: 'CLOSED',
+      fanSpeed: 2,
+    },
+    {
+      id: `dev-${roomId}-wfan-3`,
+      name: `Quạt Treo Tường 3 (Vách Trái - Sau) (${code})`,
+      brandModel: 'Vinawind QTT-400X 55W',
+      type: 'fan',
+      isOn: false,
+      powerRatingW: 55,
+      currentPowerW: 0,
+      nominalCurrentA: 0.25,
+      relayPin: 'GPIO 27 (Relay 24V)',
+      relayState: 'OPEN',
+      fanSpeed: 1,
+    },
+    {
+      id: `dev-${roomId}-wfan-4`,
+      name: `Quạt Treo Tường 4 (Vách Phải - Sau) (${code})`,
+      brandModel: 'Vinawind QTT-400X 55W',
+      type: 'fan',
+      isOn: false,
+      powerRatingW: 55,
+      currentPowerW: 0,
+      nominalCurrentA: 0.25,
+      relayPin: 'GPIO 32 (Relay 24V)',
+      relayState: 'OPEN',
+      fanSpeed: 1,
+    },
+    {
       id: `dev-${roomId}-proj-1`,
       name: `Máy Chiếu Giảng Đường (${code})`,
       brandModel: 'Panasonic PT-VMZ51 350W',
@@ -94,7 +146,7 @@ function mapRoomRowToClassroom(row: any, devicesFromDb: any[], schedulesFromDb: 
         isOn,
         powerRatingW: rating,
         currentPowerW: currentPower,
-        nominalCurrentA: Number((rating / 220).toFixed(2)),
+        nominalCurrentA: Number((rating / 24).toFixed(2)),
         relayPin: `GPIO ${16 + (idx % 6)}`,
         relayState: isOn ? 'CLOSED' : 'OPEN',
         ...(devType === 'ac'
@@ -596,6 +648,34 @@ export const supabaseService = {
   },
 
   /**
+   * Save a timetable schedule slot to Supabase 'schedules' table
+   */
+  async saveSchedule(slot: any, roomId?: string): Promise<boolean> {
+    const supabase = getSupabaseClient();
+    if (!supabase) return false;
+
+    try {
+      const cleanNumericRoomId = parseInt(String(roomId || slot.roomId || '1').replace(/[^0-9]/g, '') || '1', 10);
+      const scheduleRow = {
+        schedule_name: `${slot.subject} (${slot.period})`,
+        room_id: cleanNumericRoomId,
+        start_time: slot.startTime,
+        end_time: slot.endTime,
+        days_of_week: slot.dayOfWeek || 'T2-T7',
+        action_command: 'TURN_ON',
+        is_enabled: Boolean(slot.isActiveNow),
+      };
+
+      // Try inserting into schedules table
+      await supabase.from('schedules').insert([scheduleRow]);
+      return true;
+    } catch (err) {
+      console.warn('[Supabase] saveSchedule notice:', err);
+      return false;
+    }
+  },
+
+  /**
    * Fetch all registered users from Supabase 'users' table
    */
   async fetchUsers(): Promise<Array<{
@@ -885,12 +965,15 @@ export const supabaseService = {
     }
   },
 
-  async deleteSchedule(id: number): Promise<{ success: boolean; error?: string }> {
+  async deleteSchedule(id: number | string): Promise<{ success: boolean; error?: string }> {
     const supabase = getSupabaseClient();
     if (!supabase) return { success: false, error: 'Client not configured' };
     try {
-      const { error } = await supabase.from('schedules').delete().eq('id', id);
-      if (error) return { success: false, error: error.message };
+      const cleanNumId = typeof id === 'number' ? id : parseInt(id.replace(/[^0-9]/g, '') || '0', 10);
+      if (cleanNumId > 0) {
+        const { error } = await supabase.from('schedules').delete().eq('id', cleanNumId);
+        if (error) return { success: false, error: error.message };
+      }
       return { success: true };
     } catch (err) {
       return { success: false, error: err instanceof Error ? err.message : 'Error deleting schedule' };

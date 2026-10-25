@@ -159,7 +159,7 @@ BEGIN
         [Capacity] INT NOT NULL DEFAULT 40,
         [TotalPowerW] DECIMAL(10, 2) NOT NULL DEFAULT 0.00,
         [CurrentA] DECIMAL(8, 2) NOT NULL DEFAULT 0.00,
-        [VoltageV] DECIMAL(8, 2) NOT NULL DEFAULT 220.00,
+        [VoltageV] DECIMAL(8, 2) NOT NULL DEFAULT 24.00,
         [TemperatureC] DECIMAL(5, 1) NOT NULL DEFAULT 25.0,
         [HumidityPct] DECIMAL(5, 1) NOT NULL DEFAULT 60.0,
         [IsVacant] BIT NOT NULL DEFAULT 0,
@@ -175,7 +175,7 @@ BEGIN
     CREATE TABLE [dbo].[EnergyTelemetry] (
         [Id] BIGINT IDENTITY(1,1) NOT NULL PRIMARY KEY,
         [ClassroomId] NVARCHAR(50) NOT NULL,
-        [VoltageV] DECIMAL(8, 2) NOT NULL DEFAULT 220.00,
+        [VoltageV] DECIMAL(8, 2) NOT NULL DEFAULT 24.00,
         [CurrentA] DECIMAL(8, 2) NOT NULL DEFAULT 0.00,
         [ActivePowerW] DECIMAL(10, 2) NOT NULL DEFAULT 0.00,
         [FrequencyHz] DECIMAL(6, 2) NOT NULL DEFAULT 50.00,

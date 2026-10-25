@@ -183,7 +183,7 @@ export const PermissionsModal: React.FC = () => {
                 </span>
               </div>
               <p className="text-xs text-slate-400 mt-0.5">
-                Kiểm soát bảo vệ tiếp điểm Relay 220V, cơ sở dữ liệu Supabase và an toàn điện trường học
+                Kiểm soát bảo vệ tiếp điểm Relay 24V, cơ sở dữ liệu Supabase và an toàn điện trường học
               </p>
             </div>
           </div>
@@ -294,11 +294,11 @@ export const PermissionsModal: React.FC = () => {
                   </div>
                   <div>
                     <h4 className="text-sm font-bold text-white">
-                      Nguyên Tắc An Toàn Tiếp Điểm Relay 220V & Dữ Liệu Trường Học
+                      Nguyên Tắc An Toàn Tiếp Điểm Relay 24V & Dữ Liệu Trường Học
                     </h4>
                     <p className="text-xs text-slate-300 mt-1 leading-relaxed">
-                      Các thiết bị phụ tải trong phòng học (điều hòa 2.5HP dòng khởi động lớn, dàn đèn LED tuýp, quạt)
-                      được đóng ngắt qua Relay Contactor 220V. Hệ thống phân quyền chặt chẽ theo 4 cấp bậc để ngăn chặn
+                      Các thiết bị phụ tải trong phòng học (điều hòa, dàn đèn LED, quạt)
+                      được đóng ngắt qua Relay Contactor 24V. Hệ thống phân quyền chặt chẽ theo 4 cấp bậc để ngăn chặn
                       sự cố chập cháy, phá hoại hoặc đóng ngắt nhầm ngoài giờ giảng dạy.
                     </p>
                   </div>
@@ -749,7 +749,7 @@ export const PermissionsModal: React.FC = () => {
         <div className="px-6 py-3 border-t border-slate-800 bg-slate-950/70 flex items-center justify-between text-xs">
           <div className="flex items-center gap-2 text-slate-400">
             <Lock className="h-3.5 w-3.5 text-slate-500" />
-            <span>Phân quyền được áp dụng lập tức trên toàn bộ công tắc Relay 220V và Supabase.</span>
+            <span>Phân quyền được áp dụng lập tức trên toàn bộ công tắc Relay 24V và Supabase.</span>
           </div>
 
           <button

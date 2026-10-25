@@ -21,6 +21,9 @@ export interface Device {
 
 export interface TimetableSlot {
   id: string;
+  roomId?: string; // ID phòng học tương ứng (ví dụ: 'cr-a101', 'cr-1')
+  roomCode?: string; // Mã phòng học (ví dụ: 'A101', 'B201')
+  roomName?: string; // Tên phòng học (ví dụ: 'Phòng học thông minh A.101')
   period: string; // "Tiết 1-3", "Tiết 4-5", v.v.
   startTime: string; // "07:00"
   endTime: string; // "09:15"
@@ -28,6 +31,9 @@ export interface TimetableSlot {
   lecturer: string;
   classGroup: string;
   isActiveNow: boolean;
+  dayOfWeek?: string; // "Thứ 2", "Thứ 3", "Thứ 4", v.v.
+  note?: string;
+  expectedStudents?: number;
 }
 
 export interface CalibrationPoint {

@@ -2,7 +2,8 @@ import React, { useState } from 'react';
 import { useClassroom } from '../context/ClassroomContext';
 import { useAuth } from '../context/AuthContext';
 import { Classroom } from '../types';
-import { formatWatts, formatVND, calculateElectricityCost } from '../utils/calculations';
+import { formatWatts } from '../utils/calculations';
+import { esp32HardwareService } from '../services/esp32HardwareService';
 import { RoomDetailModal } from './RoomDetailModal';
 import { AddRoomModal } from './AddRoomModal';
 import { DeleteRoomModal } from './DeleteRoomModal';
@@ -12,6 +13,7 @@ import {
   Thermometer,
   Users,
   Power,
+  Cpu,
   AlertTriangle,
   Lightbulb,
   Wind,
@@ -45,6 +47,7 @@ export const DashboardView: React.FC = () => {
     setSelectedClassroomId,
     activeRoomCount,
     includeVat,
+    openESP32Modal,
     supabaseStatus,
     supabaseRoomCount,
     sourceTable,
@@ -82,7 +85,7 @@ export const DashboardView: React.FC = () => {
       return;
     }
     if (currentUser.role === 'STUDENT') {
-      setAuthNotice('Tài khoản Sinh viên ở chế độ Chỉ xem. Quyền đóng/ngắt thiết bị Relay 220V bị khóa!');
+      setAuthNotice('Tài khoản Sinh viên ở chế độ Chỉ xem. Quyền đóng/ngắt thiết bị Relay 24V bị khóa!');
       return;
     }
     const perm = canPerform('CONTROL_DEVICE', classroomId);
@@ -100,7 +103,7 @@ export const DashboardView: React.FC = () => {
       return;
     }
     if (currentUser.role === 'STUDENT') {
-      setAuthNotice('Tài khoản Sinh viên ở chế độ Chỉ xem. Quyền đóng/ngắt thiết bị Relay 220V bị khóa!');
+      setAuthNotice('Tài khoản Sinh viên ở chế độ Chỉ xem. Quyền đóng/ngắt thiết bị Relay 24V bị khóa!');
       return;
     }
     const perm = canPerform('CONTROL_DEVICE', classroomId);
@@ -118,7 +121,7 @@ export const DashboardView: React.FC = () => {
       return;
     }
     if (currentUser.role === 'STUDENT') {
-      setAuthNotice('Tài khoản Sinh viên ở chế độ Chỉ xem. Quyền đóng/ngắt thiết bị Relay 220V bị khóa!');
+      setAuthNotice('Tài khoản Sinh viên ở chế độ Chỉ xem. Quyền đóng/ngắt thiết bị Relay 24V bị khóa!');
       return;
     }
     const perm = canPerform('CONTROL_DEVICE', classroomId);
@@ -436,7 +439,7 @@ INSERT INTO public.devices (room_id, device_name, device_type, is_on) VALUES
                 </span>
               </div>
               <p className="text-amber-200/90 mt-1 leading-relaxed">
-                Hệ thống đang khóa toàn bộ thao tác điều khiển thiết bị Relay 220V, Aptomat tổng và thêm/xóa phòng học. Bạn chỉ có quyền xem thông số đo lường PZEM-004T. Vui lòng đăng nhập tài khoản có thẩm quyền để thao tác.
+                Hệ thống đang khóa toàn bộ thao tác điều khiển thiết bị Relay 24V, Aptomat tổng và thêm/xóa phòng học. Bạn chỉ có quyền xem thông số đo lường điện năng. Vui lòng đăng nhập tài khoản có thẩm quyền để thao tác.
               </p>
             </div>
           </div>
@@ -464,7 +467,7 @@ INSERT INTO public.devices (room_id, device_name, device_type, is_on) VALUES
                 </span>
               </div>
               <p className="text-blue-200/90 mt-1 leading-relaxed">
-                Theo quy định an toàn điện trường học, tài khoản Sinh viên chỉ có quyền xem giám sát năng lượng và thời khóa biểu. Mọi thao tác đóng/ngắt thiết bị Relay 220V, Aptomat tổng và cấu hình hệ thống bị KHÓA.
+                Theo quy định an toàn điện trường học, tài khoản Sinh viên chỉ có quyền xem giám sát năng lượng và thời khóa biểu. Mọi thao tác đóng/ngắt thiết bị Relay 24V, Aptomat tổng và cấu hình hệ thống bị KHÓA.
               </p>
             </div>
           </div>
@@ -538,26 +541,16 @@ INSERT INTO public.devices (room_id, device_name, device_type, is_on) VALUES
 
         <div className="bg-slate-900 border border-slate-800 rounded-xl p-4 shadow-sm">
           <div className="flex items-center justify-between text-slate-400">
-            <span className="text-xs uppercase font-medium">Điện Năng & Chi Phí Hôm Nay</span>
+            <span className="text-xs uppercase font-medium">Tổng Điện Năng Hôm Nay</span>
             <Building className="h-4 w-4 text-emerald-400" />
           </div>
           <div className="mt-2 flex items-baseline gap-2">
             <span className="text-2xl font-bold font-mono text-emerald-400">
-              {classrooms.reduce((s, c) => s + c.energyTodayKWh, 0).toFixed(1)} kWh
+              {classrooms.reduce((s, c) => s + c.energyTodayKWh, 0).toFixed(2)} kWh
             </span>
           </div>
           <div className="mt-2 text-xs text-slate-300">
-            Ước tính:{' '}
-            <span className="font-semibold text-white">
-              {formatVND(
-                calculateElectricityCost(
-                  classrooms.reduce((s, c) => s + c.energyTodayKWh, 0),
-                  includeVat
-                ),
-                false
-              )}
-            </span>{' '}
-            (EVN {includeVat ? 'VAT 8%' : 'gốc'})
+            Cấp nguồn: <span className="font-semibold text-white">24.0V</span> · Hệ số công suất: <span className="font-semibold text-emerald-400">cos φ ≈ 0.98</span>
           </div>
         </div>
 
@@ -599,10 +592,51 @@ INSERT INTO public.devices (room_id, device_name, device_type, is_on) VALUES
           </div>
           <div className="mt-2 text-xs text-slate-400">
             {classrooms.some((c) => c.warningForgotten)
-              ? 'Đang kích hoạt quy trình tự ngắt relay 220V'
+              ? 'Đang kích hoạt quy trình tự ngắt relay 24V'
               : 'Tất cả phòng trống an toàn'}
           </div>
         </div>
+      </div>
+
+      {/* Physical ESP32 Hardware Link Banner */}
+      <div className="bg-slate-900/90 border border-slate-800 rounded-xl p-3.5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-sm">
+        <div className="flex items-center gap-3">
+          <div className={`p-2 rounded-lg border ${
+            esp32HardwareService.getStatus() === 'connected'
+              ? 'bg-emerald-500/15 border-emerald-500/40 text-emerald-400'
+              : 'bg-cyan-500/10 border-cyan-500/30 text-cyan-400'
+          }`}>
+            <Cpu className="w-5 h-5" />
+          </div>
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-bold text-white tracking-wide">
+                Giao Tiếp Mạch Thực Tế ESP32 (PZEM-004T 24V · Relay 24V · PIR)
+              </span>
+              <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold border ${
+                esp32HardwareService.getStatus() === 'connected'
+                  ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40 animate-pulse'
+                  : 'bg-slate-800 text-slate-400 border-slate-700'
+              }`}>
+                <span className={`w-1.5 h-1.5 rounded-full ${esp32HardwareService.getStatus() === 'connected' ? 'bg-emerald-400' : 'bg-slate-500'}`} />
+                {esp32HardwareService.getStatus() === 'connected'
+                  ? `ĐÃ KẾT NỐI (${esp32HardwareService.getPortInfo()})`
+                  : 'CHƯA KẾT NỐI MẠCH THẬT'}
+              </span>
+            </div>
+            <p className="text-[11px] text-slate-400 mt-0.5">
+              Hỗ trợ kết nối trực tiếp cổng Serial USB (Web Serial API trên Chrome/Edge) hoặc qua WiFi/WebSocket để truyền nhận lệnh và đo lường trực tiếp.
+            </p>
+          </div>
+        </div>
+
+        <button
+          onClick={openESP32Modal}
+          className="px-3.5 py-2 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white font-bold text-xs flex items-center gap-1.5 transition-colors shadow-md shadow-cyan-950/40 shrink-0"
+        >
+          <Cpu className="w-4 h-4" />
+          <span>{esp32HardwareService.getStatus() === 'connected' ? 'Cấu Hình & Terminal ESP32' : 'Kết Nối Mạch ESP32'}</span>
+        </button>
       </div>
 
       {/* When 0 classrooms are in Supabase: Dedicated, Helpful Onboarding / Empty State */}

@@ -56,12 +56,39 @@
         "updatedAt": { "type": "string" }
       },
       "required": ["updatedAt"]
+    },
+    "Schedule": {
+      "title": "Schedule",
+      "description": "Academic schedule slot assigned to a classroom",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "roomId": { "type": "string" },
+        "roomCode": { "type": "string" },
+        "roomName": { "type": "string" },
+        "period": { "type": "string" },
+        "startTime": { "type": "string" },
+        "endTime": { "type": "string" },
+        "subject": { "type": "string" },
+        "lecturer": { "type": "string" },
+        "classGroup": { "type": "string" },
+        "dayOfWeek": { "type": "string" },
+        "note": { "type": "string" },
+        "expectedStudents": { "type": "number" },
+        "isActiveNow": { "type": "boolean" },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["id", "roomId", "subject", "startTime", "endTime"]
     }
   },
   "firestore": {
     "/classrooms/{classroomId}": {
       "schema": "Classroom",
       "description": "Classroom monitoring documents"
+    },
+    "/schedules/{scheduleId}": {
+      "schema": "Schedule",
+      "description": "Academic timetable slots by room"
     },
     "/users/{userId}": {
       "schema": "User",

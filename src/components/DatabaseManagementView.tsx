@@ -75,6 +75,14 @@ export const DatabaseManagementView: React.FC = () => {
   const [newUserUsername, setNewUserUsername] = useState<string>('');
   const [newUserRole, setNewUserRole] = useState<string>('lecturer');
 
+  // Delete confirmation modal state
+  const [confirmDelete, setConfirmDelete] = useState<{
+    title: string;
+    description: string;
+    onConfirm: () => Promise<void>;
+  } | null>(null);
+  const [isConfirmingDelete, setIsConfirmingDelete] = useState<boolean>(false);
+
   // Show temporary toast
   const showFeedback = (type: 'success' | 'error', message: string) => {
     setFeedback({ type, message });
@@ -133,22 +141,25 @@ export const DatabaseManagementView: React.FC = () => {
   };
 
   // Handle Delete Room
-  const handleDeleteRoom = async (roomId: number, roomName: string) => {
-    if (!window.confirm(`Bạn có chắc chắn muốn xóa phòng "${roomName}" (ID: ${roomId}) và tất cả thiết bị liên quan trên database?`)) {
-      return;
-    }
-    const res = await supabaseService.deleteRoom(String(roomId));
-    if (res.success) {
-      showFeedback('success', `Đã xóa phòng "${roomName}" khỏi bảng [rooms]!`);
-      loadAllTables();
-      refreshFromSupabase();
-      supabaseService.logActivity({
-        control_source: 'WEB_ADMIN',
-        action_performed: `Xóa phòng học ID: ${roomId} (${roomName})`,
-      });
-    } else {
-      showFeedback('error', res.error || 'Lỗi khi xóa phòng trên database.');
-    }
+  const handleDeleteRoom = (roomId: number, roomName: string) => {
+    setConfirmDelete({
+      title: 'Xác Nhận Xóa Phòng Học',
+      description: `Bạn có chắc chắn muốn xóa phòng "${roomName}" (ID: ${roomId}) và tất cả thiết bị liên quan trên database?`,
+      onConfirm: async () => {
+        const res = await supabaseService.deleteRoom(String(roomId));
+        if (res.success) {
+          showFeedback('success', `Đã xóa phòng "${roomName}" khỏi bảng [rooms]!`);
+          loadAllTables();
+          refreshFromSupabase();
+          supabaseService.logActivity({
+            control_source: 'WEB_ADMIN',
+            action_performed: `Xóa phòng học ID: ${roomId} (${roomName})`,
+          });
+        } else {
+          showFeedback('error', res.error || 'Lỗi khi xóa phòng trên database.');
+        }
+      },
+    });
   };
 
   // Handle Toggle Room Active
@@ -205,7 +216,7 @@ export const DatabaseManagementView: React.FC = () => {
       supabaseService.logActivity({
         device_id: dev.id,
         control_source: 'WEB_ADMIN',
-        action_performed: `${updated ? 'BẬT' : 'TẮT'} thiết bị [${dev.device_name}] (Relay 220V)`,
+        action_performed: `${updated ? 'BẬT' : 'TẮT'} thiết bị [${dev.device_name}] (Relay 24V)`,
       });
     } else {
       showFeedback('error', res.error || 'Lỗi cập nhật thiết bị.');
@@ -213,21 +224,26 @@ export const DatabaseManagementView: React.FC = () => {
   };
 
   // Handle Delete Device
-  const handleDeleteDevice = async (deviceId: number, devName: string) => {
-    if (!window.confirm(`Bạn có chắc muốn xóa thiết bị "${devName}" (ID: ${deviceId}) khỏi database?`)) return;
-    const res = await supabaseService.deleteDevice(deviceId);
-    if (res.success) {
-      showFeedback('success', `Đã xóa thiết bị "${devName}" khỏi bảng [devices]!`);
-      loadAllTables();
-      refreshFromSupabase();
-      supabaseService.logActivity({
-        device_id: deviceId,
-        control_source: 'WEB_ADMIN',
-        action_performed: `Xóa thiết bị ID: ${deviceId} (${devName})`,
-      });
-    } else {
-      showFeedback('error', res.error || 'Lỗi xóa thiết bị.');
-    }
+  const handleDeleteDevice = (deviceId: number, devName: string) => {
+    setConfirmDelete({
+      title: 'Xác Nhận Xóa Thiết Bị',
+      description: `Bạn có chắc muốn xóa thiết bị "${devName}" (ID: ${deviceId}) khỏi bảng [devices] trên cơ sở dữ liệu?`,
+      onConfirm: async () => {
+        const res = await supabaseService.deleteDevice(deviceId);
+        if (res.success) {
+          showFeedback('success', `Đã xóa thiết bị "${devName}" khỏi bảng [devices]!`);
+          loadAllTables();
+          refreshFromSupabase();
+          supabaseService.logActivity({
+            device_id: deviceId,
+            control_source: 'WEB_ADMIN',
+            action_performed: `Xóa thiết bị ID: ${deviceId} (${devName})`,
+          });
+        } else {
+          showFeedback('error', res.error || 'Lỗi xóa thiết bị.');
+        }
+      },
+    });
   };
 
   // Handle Create Schedule
@@ -276,19 +292,24 @@ export const DatabaseManagementView: React.FC = () => {
   };
 
   // Handle Delete Schedule
-  const handleDeleteSchedule = async (scheduleId: number, schedName: string) => {
-    if (!window.confirm(`Bạn có chắc muốn xóa lịch "${schedName}" khỏi bảng [schedules]?`)) return;
-    const res = await supabaseService.deleteSchedule(scheduleId);
-    if (res.success) {
-      showFeedback('success', `Đã xóa lịch "${schedName}" khỏi bảng [schedules]!`);
-      loadAllTables();
-      supabaseService.logActivity({
-        control_source: 'SCHEDULE_AUTO',
-        action_performed: `Xóa lịch tự động ID: ${scheduleId} (${schedName})`,
-      });
-    } else {
-      showFeedback('error', res.error || 'Lỗi xóa lịch.');
-    }
+  const handleDeleteSchedule = (scheduleId: number, schedName: string) => {
+    setConfirmDelete({
+      title: 'Xác Nhận Xóa Lịch Học Vụ',
+      description: `Bạn có chắc muốn xóa lịch "${schedName}" (ID: ${scheduleId}) khỏi bảng [schedules]?`,
+      onConfirm: async () => {
+        const res = await supabaseService.deleteSchedule(scheduleId);
+        if (res.success) {
+          showFeedback('success', `Đã xóa lịch "${schedName}" khỏi bảng [schedules]!`);
+          loadAllTables();
+          supabaseService.logActivity({
+            control_source: 'SCHEDULE_AUTO',
+            action_performed: `Xóa lịch tự động ID: ${scheduleId} (${schedName})`,
+          });
+        } else {
+          showFeedback('error', res.error || 'Lỗi xóa lịch.');
+        }
+      },
+    });
   };
 
   // Handle Create User
@@ -337,20 +358,25 @@ export const DatabaseManagementView: React.FC = () => {
   };
 
   // Handle Delete User
-  const handleDeleteUser = async (userId: number, email: string) => {
-    if (!window.confirm(`Bạn có chắc muốn xóa tài khoản "${email}" khỏi bảng [users]?`)) return;
-    const res = await supabaseService.deleteUser(userId);
-    if (res.success) {
-      showFeedback('success', `Đã xóa tài khoản "${email}" khỏi database!`);
-      loadAllTables();
-      supabaseService.logActivity({
-        user_id: userId,
-        control_source: 'WEB_ADMIN',
-        action_performed: `Xóa tài khoản ID: ${userId} (${email})`,
-      });
-    } else {
-      showFeedback('error', res.error || 'Lỗi xóa tài khoản.');
-    }
+  const handleDeleteUser = (userId: number, email: string) => {
+    setConfirmDelete({
+      title: 'Xác Nhận Xóa Tài Khoản',
+      description: `Bạn có chắc muốn xóa tài khoản "${email}" khỏi bảng [users]?`,
+      onConfirm: async () => {
+        const res = await supabaseService.deleteUser(userId);
+        if (res.success) {
+          showFeedback('success', `Đã xóa tài khoản "${email}" khỏi database!`);
+          loadAllTables();
+          supabaseService.logActivity({
+            user_id: userId,
+            control_source: 'WEB_ADMIN',
+            action_performed: `Xóa tài khoản ID: ${userId} (${email})`,
+          });
+        } else {
+          showFeedback('error', res.error || 'Lỗi xóa tài khoản.');
+        }
+      },
+    });
   };
 
   // Filtered devices
@@ -649,7 +675,7 @@ export const DatabaseManagementView: React.FC = () => {
                 Danh Sách Thiết Bị Trong Bảng [devices]
               </h3>
               <p className="text-xs text-slate-400 mt-0.5">
-                Quản lý các tải công suất 220V (Đèn LED, Máy lạnh Daikin, Quạt trần, Máy chiếu) liên kết với từng phòng.
+                Quản lý các tải công suất 24V (Đèn LED, Máy lạnh Daikin, Quạt trần, Máy chiếu) liên kết với từng phòng.
               </p>
             </div>
 
@@ -1421,6 +1447,55 @@ export const DatabaseManagementView: React.FC = () => {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Confirmation Modal for Deletion (Replaces window.confirm) */}
+      {confirmDelete && (
+        <div className="fixed inset-0 z-60 bg-slate-950/85 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-slate-900 border border-rose-900/60 rounded-2xl shadow-2xl w-full max-w-md p-6 text-slate-100 space-y-4 animate-scaleUp">
+            <div className="flex items-center gap-3 pb-3 border-b border-slate-800">
+              <div className="h-10 w-10 rounded-xl bg-rose-500/10 border border-rose-500/30 flex items-center justify-center text-rose-400 font-bold shrink-0">
+                <Trash2 className="h-5 w-5" />
+              </div>
+              <div>
+                <h4 className="font-bold text-white text-base">{confirmDelete.title}</h4>
+                <p className="text-xs text-rose-400">Thao tác cập nhật cơ sở dữ liệu vĩnh viễn</p>
+              </div>
+            </div>
+
+            <p className="text-xs text-slate-300 leading-relaxed">
+              {confirmDelete.description}
+            </p>
+
+            <div className="pt-2 flex justify-end gap-2.5">
+              <button
+                type="button"
+                disabled={isConfirmingDelete}
+                onClick={() => setConfirmDelete(null)}
+                className="px-4 py-2 text-xs rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 transition-colors"
+              >
+                Hủy
+              </button>
+              <button
+                type="button"
+                disabled={isConfirmingDelete}
+                onClick={async () => {
+                  setIsConfirmingDelete(true);
+                  try {
+                    await confirmDelete.onConfirm();
+                  } finally {
+                    setIsConfirmingDelete(false);
+                    setConfirmDelete(null);
+                  }
+                }}
+                className="px-4 py-2 text-xs font-bold rounded-xl bg-rose-600 hover:bg-rose-500 text-white shadow-lg shadow-rose-950/60 disabled:opacity-50 transition-colors flex items-center gap-1.5"
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+                <span>{isConfirmingDelete ? 'Đang xóa...' : 'Xác Nhận Xóa'}</span>
+              </button>
+            </div>
           </div>
         </div>
       )}

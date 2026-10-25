@@ -15,14 +15,22 @@ import { DatabaseManagementView } from './components/DatabaseManagementView';
 import { LoginView } from './components/LoginView';
 import { LoginModal } from './components/LoginModal';
 import { PermissionsModal } from './components/PermissionsModal';
+import { ESP32HardwareModal } from './components/ESP32HardwareModal';
+import { useClassroom } from './context/ClassroomContext';
 
 function MainApp() {
   const { currentUser } = useAuth();
+  const { isESP32ModalOpen, closeESP32Modal } = useClassroom();
   const [activeTab, setActiveTab] = useState<ActiveTab>('dashboard');
 
   // Khi khởi động web luôn bắt đầu bằng đăng nhập trước
   if (!currentUser) {
-    return <LoginView />;
+    return (
+      <>
+        <LoginView />
+        <ESP32HardwareModal isOpen={isESP32ModalOpen} onClose={closeESP32Modal} />
+      </>
+    );
   }
 
   return (
@@ -38,6 +46,8 @@ function MainApp() {
         {activeTab === 'analytics' && <AnalyticsView />}
         {activeTab === 'database' && <DatabaseManagementView />}
       </main>
+
+      <ESP32HardwareModal isOpen={isESP32ModalOpen} onClose={closeESP32Modal} />
 
       {/* Smart Campus System Footer */}
       <footer className="border-t border-slate-900 bg-slate-950/80 py-5 text-xs text-slate-400">
@@ -55,7 +65,7 @@ function MainApp() {
             <span>·</span>
             <span>Module PZEM-004T v3.0</span>
             <span>·</span>
-            <span>Relay 220V Contactor</span>
+            <span>Relay 24V Contactor</span>
             <span>·</span>
             <span>Cơ sở dữ liệu Supabase</span>
           </div>

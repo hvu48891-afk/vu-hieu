@@ -122,6 +122,58 @@ export const INITIAL_CLASSROOMS: Classroom[] = [
         relayPin: 'GPIO 23 (Relay 7 - Songle 10A)',
         relayState: 'CLOSED',
       },
+      {
+        id: 'dev-a101-wfan1',
+        name: 'Quạt Treo Tường 1 (Vách Trái - Phía Trước)',
+        brandModel: 'Quạt Treo Tường Vinawind QTT-400X (55W)',
+        type: 'fan',
+        isOn: true,
+        powerRatingW: 55,
+        currentPowerW: 45,
+        nominalCurrentA: 0.25,
+        relayPin: 'GPIO 25 (Relay 24V)',
+        relayState: 'CLOSED',
+        fanSpeed: 2,
+      },
+      {
+        id: 'dev-a101-wfan2',
+        name: 'Quạt Treo Tường 2 (Vách Phải - Phía Trước)',
+        brandModel: 'Quạt Treo Tường Vinawind QTT-400X (55W)',
+        type: 'fan',
+        isOn: true,
+        powerRatingW: 55,
+        currentPowerW: 45,
+        nominalCurrentA: 0.25,
+        relayPin: 'GPIO 26 (Relay 24V)',
+        relayState: 'CLOSED',
+        fanSpeed: 2,
+      },
+      {
+        id: 'dev-a101-wfan3',
+        name: 'Quạt Treo Tường 3 (Vách Trái - Phía Sau)',
+        brandModel: 'Quạt Treo Tường Vinawind QTT-400X (55W)',
+        type: 'fan',
+        isOn: false,
+        powerRatingW: 55,
+        currentPowerW: 0,
+        nominalCurrentA: 0.25,
+        relayPin: 'GPIO 27 (Relay 24V)',
+        relayState: 'OPEN',
+        fanSpeed: 1,
+      },
+      {
+        id: 'dev-a101-wfan4',
+        name: 'Quạt Treo Tường 4 (Vách Phải - Phía Sau)',
+        brandModel: 'Quạt Treo Tường Vinawind QTT-400X (55W)',
+        type: 'fan',
+        isOn: false,
+        powerRatingW: 55,
+        currentPowerW: 0,
+        nominalCurrentA: 0.25,
+        relayPin: 'GPIO 32 (Relay 24V)',
+        relayState: 'OPEN',
+        fanSpeed: 1,
+      },
     ],
     timetable: [
       {
@@ -277,6 +329,58 @@ export const INITIAL_CLASSROOMS: Classroom[] = [
         relayPin: 'GPIO 23 (Relay 7)',
         relayState: 'OPEN',
       },
+      {
+        id: 'dev-a102-wfan1',
+        name: 'Quạt Treo Tường 1 (Vách Trái - Phía Trước)',
+        brandModel: 'Quạt Treo Tường Vinawind QTT-400X (55W)',
+        type: 'fan',
+        isOn: true,
+        powerRatingW: 55,
+        currentPowerW: 45,
+        nominalCurrentA: 0.25,
+        relayPin: 'GPIO 25 (Relay 24V)',
+        relayState: 'CLOSED',
+        fanSpeed: 2,
+      },
+      {
+        id: 'dev-a102-wfan2',
+        name: 'Quạt Treo Tường 2 (Vách Phải - Phía Trước)',
+        brandModel: 'Quạt Treo Tường Vinawind QTT-400X (55W)',
+        type: 'fan',
+        isOn: true,
+        powerRatingW: 55,
+        currentPowerW: 45,
+        nominalCurrentA: 0.25,
+        relayPin: 'GPIO 26 (Relay 24V)',
+        relayState: 'CLOSED',
+        fanSpeed: 2,
+      },
+      {
+        id: 'dev-a102-wfan3',
+        name: 'Quạt Treo Tường 3 (Vách Trái - Phía Sau)',
+        brandModel: 'Quạt Treo Tường Vinawind QTT-400X (55W)',
+        type: 'fan',
+        isOn: false,
+        powerRatingW: 55,
+        currentPowerW: 0,
+        nominalCurrentA: 0.25,
+        relayPin: 'GPIO 27 (Relay 24V)',
+        relayState: 'OPEN',
+        fanSpeed: 1,
+      },
+      {
+        id: 'dev-a102-wfan4',
+        name: 'Quạt Treo Tường 4 (Vách Phải - Phía Sau)',
+        brandModel: 'Quạt Treo Tường Vinawind QTT-400X (55W)',
+        type: 'fan',
+        isOn: false,
+        powerRatingW: 55,
+        currentPowerW: 0,
+        nominalCurrentA: 0.25,
+        relayPin: 'GPIO 32 (Relay 24V)',
+        relayState: 'OPEN',
+        fanSpeed: 1,
+      },
     ],
     timetable: [
       {
@@ -397,6 +501,58 @@ export const INITIAL_CLASSROOMS: Classroom[] = [
           fanSpeed: 'med',
         },
       },
+      {
+        id: 'dev-b204-wfan1',
+        name: 'Quạt Treo Tường 1 (Vách Trái - Phía Trước)',
+        brandModel: 'Quạt Treo Tường Vinawind QTT-400X (55W)',
+        type: 'fan',
+        isOn: true,
+        powerRatingW: 55,
+        currentPowerW: 45,
+        nominalCurrentA: 0.25,
+        relayPin: 'GPIO 25 (Relay 24V)',
+        relayState: 'CLOSED',
+        fanSpeed: 2,
+      },
+      {
+        id: 'dev-b204-wfan2',
+        name: 'Quạt Treo Tường 2 (Vách Phải - Phía Trước)',
+        brandModel: 'Quạt Treo Tường Vinawind QTT-400X (55W)',
+        type: 'fan',
+        isOn: true,
+        powerRatingW: 55,
+        currentPowerW: 45,
+        nominalCurrentA: 0.25,
+        relayPin: 'GPIO 26 (Relay 24V)',
+        relayState: 'CLOSED',
+        fanSpeed: 2,
+      },
+      {
+        id: 'dev-b204-wfan3',
+        name: 'Quạt Treo Tường 3 (Vách Trái - Phía Sau)',
+        brandModel: 'Quạt Treo Tường Vinawind QTT-400X (55W)',
+        type: 'fan',
+        isOn: false,
+        powerRatingW: 55,
+        currentPowerW: 0,
+        nominalCurrentA: 0.25,
+        relayPin: 'GPIO 27 (Relay 24V)',
+        relayState: 'OPEN',
+        fanSpeed: 1,
+      },
+      {
+        id: 'dev-b204-wfan4',
+        name: 'Quạt Treo Tường 4 (Vách Phải - Phía Sau)',
+        brandModel: 'Quạt Treo Tường Vinawind QTT-400X (55W)',
+        type: 'fan',
+        isOn: false,
+        powerRatingW: 55,
+        currentPowerW: 0,
+        nominalCurrentA: 0.25,
+        relayPin: 'GPIO 32 (Relay 24V)',
+        relayState: 'OPEN',
+        fanSpeed: 1,
+      },
     ],
     timetable: [
       {
@@ -477,6 +633,58 @@ export const INITIAL_CLASSROOMS: Classroom[] = [
           fanSpeed: 'auto',
         },
       },
+      {
+        id: 'dev-c305-wfan1',
+        name: 'Quạt Treo Tường 1 (Vách Trái - Phía Trước)',
+        brandModel: 'Quạt Treo Tường Vinawind QTT-400X (55W)',
+        type: 'fan',
+        isOn: false,
+        powerRatingW: 55,
+        currentPowerW: 0,
+        nominalCurrentA: 0.25,
+        relayPin: 'GPIO 25 (Relay 24V)',
+        relayState: 'OPEN',
+        fanSpeed: 1,
+      },
+      {
+        id: 'dev-c305-wfan2',
+        name: 'Quạt Treo Tường 2 (Vách Phải - Phía Trước)',
+        brandModel: 'Quạt Treo Tường Vinawind QTT-400X (55W)',
+        type: 'fan',
+        isOn: false,
+        powerRatingW: 55,
+        currentPowerW: 0,
+        nominalCurrentA: 0.25,
+        relayPin: 'GPIO 26 (Relay 24V)',
+        relayState: 'OPEN',
+        fanSpeed: 1,
+      },
+      {
+        id: 'dev-c305-wfan3',
+        name: 'Quạt Treo Tường 3 (Vách Trái - Phía Sau)',
+        brandModel: 'Quạt Treo Tường Vinawind QTT-400X (55W)',
+        type: 'fan',
+        isOn: false,
+        powerRatingW: 55,
+        currentPowerW: 0,
+        nominalCurrentA: 0.25,
+        relayPin: 'GPIO 27 (Relay 24V)',
+        relayState: 'OPEN',
+        fanSpeed: 1,
+      },
+      {
+        id: 'dev-c305-wfan4',
+        name: 'Quạt Treo Tường 4 (Vách Phải - Phía Sau)',
+        brandModel: 'Quạt Treo Tường Vinawind QTT-400X (55W)',
+        type: 'fan',
+        isOn: false,
+        powerRatingW: 55,
+        currentPowerW: 0,
+        nominalCurrentA: 0.25,
+        relayPin: 'GPIO 32 (Relay 24V)',
+        relayState: 'OPEN',
+        fanSpeed: 1,
+      },
     ],
     timetable: [
       {
@@ -544,6 +752,58 @@ export const INITIAL_CLASSROOMS: Classroom[] = [
           mode: 'cool',
           fanSpeed: 'high',
         },
+      },
+      {
+        id: 'dev-h01-wfan1',
+        name: 'Quạt Treo Tường 1 (Cánh Trái Hội Trường)',
+        brandModel: 'Quạt Treo Tường Công Nghiệp Vinawind QTT-500 (85W)',
+        type: 'fan',
+        isOn: false,
+        powerRatingW: 85,
+        currentPowerW: 0,
+        nominalCurrentA: 0.38,
+        relayPin: 'GPIO 25 (Relay 24V)',
+        relayState: 'OPEN',
+        fanSpeed: 1,
+      },
+      {
+        id: 'dev-h01-wfan2',
+        name: 'Quạt Treo Tường 2 (Cánh Phải Hội Trường)',
+        brandModel: 'Quạt Treo Tường Công Nghiệp Vinawind QTT-500 (85W)',
+        type: 'fan',
+        isOn: false,
+        powerRatingW: 85,
+        currentPowerW: 0,
+        nominalCurrentA: 0.38,
+        relayPin: 'GPIO 26 (Relay 24V)',
+        relayState: 'OPEN',
+        fanSpeed: 1,
+      },
+      {
+        id: 'dev-h01-wfan3',
+        name: 'Quạt Treo Tường 3 (Hàng Ghế Phía Sau Trái)',
+        brandModel: 'Quạt Treo Tường Công Nghiệp Vinawind QTT-500 (85W)',
+        type: 'fan',
+        isOn: false,
+        powerRatingW: 85,
+        currentPowerW: 0,
+        nominalCurrentA: 0.38,
+        relayPin: 'GPIO 27 (Relay 24V)',
+        relayState: 'OPEN',
+        fanSpeed: 1,
+      },
+      {
+        id: 'dev-h01-wfan4',
+        name: 'Quạt Treo Tường 4 (Hàng Ghế Phía Sau Phải)',
+        brandModel: 'Quạt Treo Tường Công Nghiệp Vinawind QTT-500 (85W)',
+        type: 'fan',
+        isOn: false,
+        powerRatingW: 85,
+        currentPowerW: 0,
+        nominalCurrentA: 0.38,
+        relayPin: 'GPIO 32 (Relay 24V)',
+        relayState: 'OPEN',
+        fanSpeed: 1,
       },
     ],
     timetable: [
@@ -758,7 +1018,7 @@ export const STUDENT_GROUP_TASKS: StudentTask[] = [
     role: 'Kỹ sư Đo kiểm, Tính toán Kinh tế & Hiệu Chuẩn Sai Số',
     responsibilities: [
       'Thực nghiệm đo kiểm và hiệu chuẩn sai số của cảm biến PZEM-004T so với công tơ điện tử EVN (< 0.8%)',
-      'Xây dựng thuật toán phân tích biểu đồ phụ tải theo giờ và chi phí tiền điện theo biểu giá EVN (3 giá + VAT)',
+      'Xây dựng thuật toán phân tích biểu đồ phụ tải theo giờ và tối ưu hóa điện năng 24V theo thời gian học vụ',
       'Tính toán chỉ số hiệu quả năng lượng (kWh tiết kiệm được, số giờ giảm chạy không tải, giảm phát thải CO2)',
       'Soạn thảo hồ sơ đề tài tốt nghiệp, sơ đồ mạch in PCB Altium, tài liệu hướng dẫn vận hành',
     ],
@@ -773,7 +1033,7 @@ export const STUDENT_GROUP_TASKS: StudentTask[] = [
 
 export const ESP32_SAMPLE_CODE = `/**
  * FIRMWARE: HỆ THỐNG GIÁM SÁT VÀ QUẢN LÝ THIẾT BỊ PHÒNG HỌC TỪ XA
- * Firmware: ESP32-WROOM-32 kết nối PZEM-004T v3.0, Relay 220V, PIR, DHT22
+ * Firmware: ESP32-WROOM-32 kết nối PZEM-004T v3.0, Relay 24V, PIR, DHT22
  * Nhóm kỹ thuật: Kỹ sư IoT & Nhúng
  * Giao thức: MQTT / WebSocket / REST API
  */
@@ -792,10 +1052,10 @@ const int mqtt_port = 1883;
 const char* classroom_id = "A101";
 
 // --- ĐỊNH NGHĨA CHÂN PIN TRÊN ESP32 ---
-#define RELAY_LIGHT_1   16  // Relay 1: Đèn bảng (220V - Rạng Đông LED 76W)
-#define RELAY_LIGHT_2   17  // Relay 2: Đèn lớp (220V - Rạng Đông LED 152W)
-#define RELAY_FAN_1     18  // Relay 3: Quạt trước (220V - Vinawind 55W)
-#define RELAY_FAN_2     19  // Relay 4: Quạt sau (220V - Vinawind 55W)
+#define RELAY_LIGHT_1   16  // Relay 1: Đèn bảng (24V - Rạng Đông LED 76W)
+#define RELAY_LIGHT_2   17  // Relay 2: Đèn lớp (24V - Rạng Đông LED 152W)
+#define RELAY_FAN_1     18  // Relay 3: Quạt trước (24V - Vinawind 55W)
+#define RELAY_FAN_2     19  // Relay 4: Quạt sau (24V - Vinawind 55W)
 #define RELAY_AC_1      21  // Relay 5: Điều hòa 1 (Qua Contactor 30A Schneider - Daikin 2050W)
 #define RELAY_PROJECTOR 23  // Relay 6: Máy chiếu Epson & Âm thanh
 #define PIN_PIR         34  // Cảm biến chuyển động PIR HC-SR501
@@ -868,7 +1128,7 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
     int pin = getPinByDeviceName(device);
     if (pin != -1) {
       digitalWrite(pin, state ? LOW : HIGH); // Module Relay Active-LOW
-      Serial.printf("Relay %s -> %s\\n", device, state ? "DONG TIEP DIEM (220V ON)" : "NGAT (220V OFF)");
+      Serial.printf("Relay %s -> %s\\n", device, state ? "DONG TIEP DIEM (24V ON)" : "NGAT (24V OFF)");
     }
   } else if (strcmp(cmd, "ALL_OFF") == 0) {
     // Ngắt toàn bộ tiếp điểm relay khi tan học hoặc phòng trống quá thời gian quy định
@@ -879,7 +1139,7 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
     digitalWrite(RELAY_AC_1, HIGH);
     digitalWrite(RELAY_PROJECTOR, HIGH);
     tone(PIN_BUZZER, 1000, 200); // Kêu beep báo hiệu an toàn
-    Serial.println("DA NGAT AN TOAN TOAN BO RELAY 220V PHONG HOC!");
+    Serial.println("DA NGAT AN TOAN TOAN BO RELAY 24V PHONG HOC!");
   }
 }
 

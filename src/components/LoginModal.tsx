@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useAuth, DEMO_USERS } from '../context/AuthContext';
+import { useAuth } from '../context/AuthContext';
 import { UserRole } from '../types';
 import {
   X,
@@ -35,7 +35,8 @@ export const LoginModal: React.FC = () => {
   const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
-  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [loginErrorMsg, setLoginErrorMsg] = useState<string | null>(null);
+  const [regErrorMsg, setRegErrorMsg] = useState<string | null>(null);
   const [regSuccessMsg, setRegSuccessMsg] = useState<string | null>(null);
 
   // Registration state
@@ -64,39 +65,39 @@ export const LoginModal: React.FC = () => {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    setErrorMsg(null);
+    setLoginErrorMsg(null);
     setRegSuccessMsg(null);
     const res = login(identifier, password);
     if (!res.success) {
-      setErrorMsg(res.error || 'Đăng nhập không thành công.');
+      setLoginErrorMsg(res.error || 'Tài khoản và mật khẩu không đúng. Vui lòng kiểm tra lại!');
     }
   };
 
   const handleRegisterSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setErrorMsg(null);
+    setRegErrorMsg(null);
     setRegSuccessMsg(null);
 
     const cleanName = regName.trim();
     const cleanEmail = regEmail.trim();
 
     if (!cleanName || !cleanEmail) {
-      setErrorMsg('Vui lòng nhập đầy đủ Họ và tên và Địa chỉ Email!');
+      setRegErrorMsg('Vui lòng nhập đầy đủ Họ và tên và Địa chỉ Email!');
       return;
     }
 
     if (!cleanEmail.includes('@') || !cleanEmail.includes('.')) {
-      setErrorMsg('Định dạng email không hợp lệ (ví dụ: nguyenvanan@campus.edu.vn)!');
+      setRegErrorMsg('Định dạng email không hợp lệ (ví dụ: nguyenvanan@campus.edu.vn)!');
       return;
     }
 
     if (regPassword.length < 4) {
-      setErrorMsg('Mật khẩu bảo mật phải có ít nhất 4 ký tự!');
+      setRegErrorMsg('Mật khẩu bảo mật phải có ít nhất 4 ký tự!');
       return;
     }
 
     if (regPassword !== regConfirmPassword) {
-      setErrorMsg('Mật khẩu xác nhận không khớp! Vui lòng kiểm tra lại.');
+      setRegErrorMsg('Mật khẩu xác nhận không khớp! Vui lòng kiểm tra lại.');
       return;
     }
 
@@ -116,17 +117,19 @@ export const LoginModal: React.FC = () => {
 
       if (res.success) {
         setRegSuccessMsg(
-          `Đăng ký thành công tài khoản "${cleanName}"! Bạn có thể đăng nhập ngay.`
+          `Đăng ký thành công tài khoản "${cleanName}"! Vui lòng nhập mật khẩu để đăng nhập.`
         );
         setActiveTab('login');
         setIdentifier(cleanEmail);
-        setPassword(regPassword);
+        setPassword('');
+        setLoginErrorMsg(null);
+        setRegErrorMsg(null);
       } else {
-        setErrorMsg(res.error || 'Có lỗi xảy ra khi tạo tài khoản.');
+        setRegErrorMsg(res.error || 'Có lỗi xảy ra khi tạo tài khoản.');
       }
     } catch (err) {
       setIsRegistering(false);
-      setErrorMsg(err instanceof Error ? err.message : 'Lỗi kết nối khi đăng ký tài khoản');
+      setRegErrorMsg(err instanceof Error ? err.message : 'Lỗi kết nối khi đăng ký tài khoản');
     }
   };
 
@@ -141,12 +144,6 @@ export const LoginModal: React.FC = () => {
       case 'STUDENT':
         return 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30';
     }
-  };
-
-  const handlePrefillAccount = (accountEmail: string, accountPass: string) => {
-    setIdentifier(accountEmail);
-    setPassword(accountPass);
-    setErrorMsg(null);
   };
 
   return (
@@ -213,7 +210,8 @@ export const LoginModal: React.FC = () => {
             type="button"
             onClick={() => {
               setActiveTab('login');
-              setErrorMsg(null);
+              setLoginErrorMsg(null);
+              setRegErrorMsg(null);
               setRegSuccessMsg(null);
             }}
             className={`py-2 text-xs font-bold rounded-lg transition-colors flex items-center justify-center gap-2 ${
@@ -230,7 +228,8 @@ export const LoginModal: React.FC = () => {
             type="button"
             onClick={() => {
               setActiveTab('register');
-              setErrorMsg(null);
+              setLoginErrorMsg(null);
+              setRegErrorMsg(null);
               setRegSuccessMsg(null);
             }}
             className={`py-2 text-xs font-bold rounded-lg transition-colors flex items-center justify-center gap-2 ${
@@ -246,26 +245,28 @@ export const LoginModal: React.FC = () => {
 
         {/* Body Content */}
         <div className="p-6 overflow-y-auto space-y-4 flex-1">
-          {regSuccessMsg && (
-            <div className="p-3.5 rounded-xl bg-emerald-950/80 border border-emerald-600 text-xs text-emerald-200 flex items-start gap-2.5 animate-fadeIn">
-              <CheckCircle2 className="h-5 w-5 text-emerald-400 shrink-0 mt-0.5" />
-              <div>
-                <span className="font-bold text-white block">Thao tác thành công!</span>
-                <span className="leading-relaxed mt-0.5 block">{regSuccessMsg}</span>
-              </div>
-            </div>
-          )}
-
-          {errorMsg && (
-            <div className="p-3.5 rounded-xl bg-rose-950/70 border border-rose-800 text-xs text-rose-200 flex items-start gap-2.5 animate-fadeIn">
-              <AlertCircle className="h-5 w-5 text-rose-400 shrink-0 mt-0.5" />
-              <span className="leading-relaxed">{errorMsg}</span>
-            </div>
-          )}
-
           {/* TAB 1: FORM LOGIN */}
           {activeTab === 'login' && (
             <form onSubmit={handleSubmit} className="space-y-4">
+              {regSuccessMsg && (
+                <div className="p-3.5 rounded-xl bg-emerald-950/80 border border-emerald-600 text-xs text-emerald-200 flex items-start gap-2.5 animate-fadeIn">
+                  <CheckCircle2 className="h-5 w-5 text-emerald-400 shrink-0 mt-0.5" />
+                  <div>
+                    <span className="font-bold text-white block">Thao tác thành công!</span>
+                    <span className="leading-relaxed mt-0.5 block">{regSuccessMsg}</span>
+                  </div>
+                </div>
+              )}
+
+              {loginErrorMsg && (
+                <div className="p-3.5 rounded-xl bg-rose-950/80 border border-rose-700 text-xs text-rose-200 flex items-start gap-2.5 animate-fadeIn shadow-lg shadow-rose-950/50">
+                  <AlertCircle className="h-5 w-5 text-rose-400 shrink-0 mt-0.5" />
+                  <div>
+                    <span className="font-bold text-white block">Đăng nhập không thành công</span>
+                    <span className="leading-relaxed mt-0.5 block">{loginErrorMsg}</span>
+                  </div>
+                </div>
+              )}
               <div>
                 <label className="text-xs font-semibold text-slate-300 block mb-1.5">
                   Địa chỉ Email hoặc Tên đăng nhập:
@@ -319,36 +320,6 @@ export const LoginModal: React.FC = () => {
                 </div>
               </div>
 
-              {/* Sample Accounts Helper */}
-              <div className="p-3 rounded-xl bg-slate-950 border border-slate-800 text-[11px] text-slate-400 space-y-2">
-                <div className="flex items-center justify-between">
-                  <strong className="text-slate-300">💡 Tài khoản mẫu đã đăng ký sẵn:</strong>
-                  <span className="text-[10px] text-emerald-400 font-mono">Nhấn để điền</span>
-                </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 text-xs">
-                  {DEMO_USERS.map((user) => (
-                    <button
-                      key={user.id}
-                      type="button"
-                      onClick={() => handlePrefillAccount(user.email, user.password)}
-                      className="p-2 rounded-lg bg-slate-900/80 hover:bg-slate-800 border border-slate-800/80 hover:border-emerald-500/40 text-left transition-all flex items-center justify-between group"
-                    >
-                      <div className="min-w-0 pr-1">
-                        <span className="font-semibold text-white group-hover:text-emerald-400 transition-colors block truncate text-[11px]">
-                          {user.email}
-                        </span>
-                        <span className="text-[10px] text-slate-400 block truncate">
-                          {user.roleTitle} · pass: <code className="text-emerald-400">{user.password}</code>
-                        </span>
-                      </div>
-                      <span className="text-[9px] font-mono px-1 py-0.5 rounded bg-slate-800 text-slate-400 border border-slate-700 group-hover:bg-emerald-500 group-hover:text-slate-950 transition-colors shrink-0">
-                        Điền
-                      </span>
-                    </button>
-                  ))}
-                </div>
-              </div>
-
               <div className="pt-2">
                 <button
                   type="submit"
@@ -364,6 +335,15 @@ export const LoginModal: React.FC = () => {
           {/* TAB 2: REGISTER NEW ACCOUNT */}
           {activeTab === 'register' && (
             <form onSubmit={handleRegisterSubmit} className="space-y-3.5">
+              {regErrorMsg && (
+                <div className="p-3.5 rounded-xl bg-rose-950/80 border border-rose-700 text-xs text-rose-200 flex items-start gap-2.5 animate-fadeIn shadow-lg shadow-rose-950/50">
+                  <AlertCircle className="h-5 w-5 text-rose-400 shrink-0 mt-0.5" />
+                  <div>
+                    <span className="font-bold text-white block">Đăng ký không thành công</span>
+                    <span className="leading-relaxed mt-0.5 block">{regErrorMsg}</span>
+                  </div>
+                </div>
+              )}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="text-xs font-semibold text-slate-300 block mb-1">

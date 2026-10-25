@@ -1,4 +1,4 @@
-// Web Audio API Synthesizer for 220V Relay mechanical click & system buzzer
+// Web Audio API Synthesizer for 24V Relay mechanical click & system buzzer
 
 let audioCtx: AudioContext | null = null;
 let soundEnabled = true;
@@ -24,7 +24,7 @@ const getAudioContext = (): AudioContext | null => {
 };
 
 /**
- * Realistic 220V Mechanical Relay Click Sound
+ * Realistic 24V Mechanical Relay Click Sound
  * @param state 'on' (relay coil energizes & contacts close) or 'off' (spring returns)
  */
 export const playRelayClick = (state: 'on' | 'off' = 'on') => {
